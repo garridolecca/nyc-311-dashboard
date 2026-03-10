@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NYC 311 Service Requests Dashboard</title>
+
+  <!-- ArcGIS JS SDK + Calcite (unified) -->
+  <link rel="stylesheet" href="https://js.arcgis.com/4.31/esri/themes/dark/main.css" />
+  <script src="https://js.arcgis.com/4.31/"></script>
+
+  <!-- Calcite Components -->
+  <script type="module" src="https://js.arcgis.com/calcite-components/2.13.2/calcite.esm.js"></script>
+  <link rel="stylesheet" type="text/css" href="https://js.arcgis.com/calcite-components/2.13.2/calcite.css" />
+
+  <!-- Chart.js for charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      font-family: "Avenir Next", "Helvetica Neue", sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      overflow: hidden;
+    }
+
+    calcite-shell {
+      --calcite-color-brand: #00b4d8;
+      --calcite-color-brand-hover: #0096c7;
+    }
+
+    #viewDiv {
+      width: 100%;
+      height: 100%;
+      background: #16213e;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      height: 56px;
+      background: #0f3460;
+      border-bottom: 2px solid #00b4d8;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.5px;
+    }
+
+    .header-subtitle {
+      font-size: 12px;
+      color: #90caf9;
+      font-weight: 400;
+    }
+
+    .header-badge {
+      background: #00b4d8;
+      color: #fff;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* Stats bar */
+    .stats-bar {
+      display: flex;
+      gap: 0;
+      background: #16213e;
+      border-bottom: 1px solid #1a3a5c;
+    }
+
+    .stat-card {
+      flex: 1;
+      padding: 12px 16px;
+      text-align: center;
+      border-right: 1px solid #1a3a5c;
+      transition: background 0.2s;
+    }
+
+    .stat-card:last-child {
+      border-right: none;
+    }
+
+    .stat-card:hover {
+      background: #1a3a5c;
+    }
+
+    .stat-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: #00b4d8;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: #90a4ae;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 2px;
+    }
+
+    /* Side panel */
+    .side-panel {
+      width: 340px;
+      background: #16213e;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      border-left: 1px solid #1a3a5c;
+    }
+
+    .panel-section {
+      padding: 14px 16px;
+      border-bottom: 1px solid #1a3a5c;
+    }
+
+    .panel-section-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #90caf9;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .panel-section-title::before {
+      content: '';
+      width: 3px;
+      height: 14px;
+      background: #00b4d8;
+      border-radius: 2px;
+    }
+
+    /* Filter chips */
+    .filter-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      padding: 5px 12px;
+      border-radius: 16px;
+      font-size: 11px;
+      cursor: pointer;
+      border: 1px solid #2a4a6c;
+      background: #1a2a4a;
+      color: #b0bec5;
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .chip:hover {
+      border-color: #00b4d8;
+      color: #fff;
+    }
+
+    .chip.active {
+      background: #00b4d8;
+      border-color: #00b4d8;
+      color: #fff;
+    }
+
+    /* Charts */
+    .chart-container {
+      width: 100%;
+      height: 180px;
+      position: relative;
+    }
+
+    .chart-container.tall {
+      height: 220px;
+    }
+
+    /* Main layout */
+    .app-layout {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .main-content {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .map-area {
+      flex: 1;
+      position: relative;
+    }
+
+    /* Map overlay info */
+    .map-legend {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      background: rgba(15, 52, 96, 0.92);
+      backdrop-filter: blur(8px);
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid #1a3a5c;
+      z-index: 10;
+    }
+
+    .legend-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #90caf9;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+      font-size: 12px;
+      color: #b0bec5;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Borough list */
+    .borough-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid #1a2a4a;
+    }
+
+    .borough-row:last-child {
+      border-bottom: none;
+    }
+
+    .borough-name {
+      font-size: 13px;
+      color: #cfd8dc;
+    }
+
+    .borough-count {
+      font-size: 13px;
+      font-weight: 600;
+      color: #00b4d8;
+    }
+
+    .borough-bar {
+      height: 4px;
+      background: #00b4d8;
+      border-radius: 2px;
+      margin-top: 3px;
+      transition: width 0.5s;
+    }
+
+    /* Time filter */
+    .time-filter {
+      display: flex;
+      gap: 4px;
+    }
+
+    .time-btn {
+      flex: 1;
+      padding: 6px 0;
+      text-align: center;
+      font-size: 11px;
+      border: 1px solid #2a4a6c;
+      background: #1a2a4a;
+      color: #b0bec5;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .time-btn:hover {
+      border-color: #00b4d8;
+    }
+
+    .time-btn.active {
+      background: #00b4d8;
+      border-color: #00b4d8;
+      color: #fff;
+    }
+
+    /* Scrollbar */
+    .side-panel::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .side-panel::-webkit-scrollbar-track {
+      background: #16213e;
+    }
+
+    .side-panel::-webkit-scrollbar-thumb {
+      background: #2a4a6c;
+      border-radius: 3px;
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.5s;
+    }
+
+    .loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid #1a3a5c;
+      border-top: 3px solid #00b4d8;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      margin-top: 16px;
+      color: #90caf9;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body class="calcite-mode-dark">
+
+  <!-- Loading -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading NYC 311 Dashboard...</div>
+  </div>
+
+  <div class="app-layout">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <circle cx="14" cy="14" r="13" stroke="#00b4d8" stroke-width="2" fill="none"/>
+          <text x="14" y="19" text-anchor="middle" fill="#00b4d8" font-size="14" font-weight="bold">311</text>
+        </svg>
+        <div>
+          <div class="header-title">NYC 311 Service Requests</div>
+          <div class="header-subtitle">Interactive Dashboard &mdash; New York City</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span class="header-badge" id="totalBadge">0 requests</span>
+      </div>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="stat-value" id="statTotal">--</div>
+        <div class="stat-label">Total Requests</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statOpen">--</div>
+        <div class="stat-label">Open</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statClosed">--</div>
+        <div class="stat-label">Closed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statAvgDays">--</div>
+        <div class="stat-label">Avg Resolution (days)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statTopType">--</div>
+        <div class="stat-label">Top Complaint</div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <!-- Map -->
+      <div class="map-area">
+        <div id="viewDiv"></div>
+        <div class="map-legend">
+          <div class="legend-title">Complaint Type</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ff6b6b"></div> Noise</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ffa726"></div> Heat/Hot Water</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#66bb6a"></div> Street/Sidewalk</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#42a5f5"></div> Water/Plumbing</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ab47bc"></div> Blocked Driveway</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#ef5350"></div> Illegal Parking</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#78909c"></div> Other</div>
+        </div>
+      </div>
+
+      <!-- Side Panel -->
+      <div class="side-panel">
+        <!-- Time Filter -->
+        <div class="panel-section">
+          <div class="panel-section-title">Time Range</div>
+          <div class="time-filter">
+            <div class="time-btn" data-range="7d">7D</div>
+            <div class="time-btn" data-range="30d">30D</div>
+            <div class="time-btn active" data-range="90d">90D</div>
+            <div class="time-btn" data-range="1y">1Y</div>
+            <div class="time-btn" data-range="all">All</div>
+          </div>
+        </div>
+
+        <!-- Complaint Type Filter -->
+        <div class="panel-section">
+          <div class="panel-section-title">Complaint Type</div>
+          <div class="filter-chips" id="typeFilters"></div>
+        </div>
+
+        <!-- Borough Breakdown -->
+        <div class="panel-section">
+          <div class="panel-section-title">By Borough</div>
+          <div id="boroughList"></div>
+        </div>
+
+        <!-- Complaint Types Chart -->
+        <div class="panel-section">
+          <div class="panel-section-title">Top Complaint Types</div>
+          <div class="chart-container">
+            <canvas id="typesChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Timeline Chart -->
+        <div class="panel-section">
+          <div class="panel-section-title">Requests Over Time</div>
+          <div class="chart-container tall">
+            <canvas id="timelineChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Status Chart -->
+        <div class="panel-section">
+          <div class="panel-section-title">Status Breakdown</div>
+          <div class="chart-container">
+            <canvas id="statusChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Hourly Pattern -->
+        <div class="panel-section">
+          <div class="panel-section-title">Hourly Pattern</div>
+          <div class="chart-container">
+            <canvas id="hourlyChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/layers/FeatureLayer",
+      "esri/layers/GraphicsLayer",
+      "esri/Graphic",
+      "esri/geometry/Point",
+      "esri/widgets/Home",
+      "esri/widgets/Popup",
+      "esri/renderers/UniqueValueRenderer",
+      "esri/symbols/SimpleMarkerSymbol",
+      "esri/PopupTemplate"
+    ], function(Map, MapView, FeatureLayer, GraphicsLayer, Graphic, Point, Home, Popup, UniqueValueRenderer, SimpleMarkerSymbol, PopupTemplate) {
+
+      // ═══════════════════════════════════════
+      // DATA GENERATION — realistic NYC 311 data
+      // ═══════════════════════════════════════
+
+      const COMPLAINT_TYPES = [
+        "Noise - Residential", "Heat/Hot Water", "Street Condition",
+        "Water System", "Blocked Driveway", "Illegal Parking",
+        "Plumbing", "Paint/Plaster", "Elevator", "General Construction",
+        "Traffic Signal Condition", "Rodent", "Sewer", "Sidewalk Condition",
+        "Dirty Conditions", "Electric", "Air Quality", "Sanitation",
+        "Building/Use", "Noise - Commercial"
+      ];
+
+      const COMPLAINT_COLORS = {
+        "Noise - Residential": "#ff6b6b",
+        "Noise - Commercial": "#ff6b6b",
+        "Heat/Hot Water": "#ffa726",
+        "Street Condition": "#66bb6a",
+        "Sidewalk Condition": "#66bb6a",
+        "Water System": "#42a5f5",
+        "Plumbing": "#42a5f5",
+        "Blocked Driveway": "#ab47bc",
+        "Illegal Parking": "#ef5350",
+        "Paint/Plaster": "#78909c",
+        "Elevator": "#78909c",
+        "General Construction": "#78909c",
+        "Traffic Signal Condition": "#78909c",
+        "Rodent": "#78909c",
+        "Sewer": "#78909c",
+        "Dirty Conditions": "#78909c",
+        "Electric": "#78909c",
+        "Air Quality": "#78909c",
+        "Sanitation": "#78909c",
+        "Building/Use": "#78909c"
+      };
+
+      const BOROUGHS = {
+        "Manhattan":      { center: [-73.9712, 40.7831], weight: 0.25, bounds: [[-74.02, -73.93], [40.70, 40.88]] },
+        "Brooklyn":       { center: [-73.9442, 40.6782], weight: 0.28, bounds: [[-74.04, -73.86], [40.57, 40.74]] },
+        "Queens":         { center: [-73.7949, 40.7282], weight: 0.22, bounds: [[-73.96, -73.70], [40.56, 40.80]] },
+        "Bronx":          { center: [-73.8648, 40.8448], weight: 0.18, bounds: [[-73.93, -73.77], [40.79, 40.92]] },
+        "Staten Island":  { center: [-74.1502, 40.5795], weight: 0.07, bounds: [[-74.26, -74.05], [40.50, 40.65]] }
+      };
+
+      const STATUSES = ["Open", "Closed", "In Progress", "Pending"];
+      const STATUS_WEIGHTS = [0.15, 0.60, 0.15, 0.10];
+
+      function seededRandom(seed) {
+        let s = seed;
+        return function() {
+          s = (s * 16807 + 0) % 2147483647;
+          return (s - 1) / 2147483646;
+        };
+      }
+
+      function weightedChoice(items, weights, rng) {
+        const r = rng();
+        let cum = 0;
+        for (let i = 0; i < items.length; i++) {
+          cum += weights[i];
+          if (r < cum) return items[i];
+        }
+        return items[items.length - 1];
+      }
+
+      function generateData(count) {
+        const rng = seededRandom(42);
+        const data = [];
+        const now = Date.now();
+        const boroughNames = Object.keys(BOROUGHS);
+        const boroughWeights = boroughNames.map(b => BOROUGHS[b].weight);
+
+        // Complaint type weights (noise & heat dominate)
+        const typeWeights = [0.18, 0.14, 0.10, 0.08, 0.07, 0.06, 0.05, 0.04, 0.03, 0.03,
+                             0.03, 0.03, 0.03, 0.02, 0.02, 0.02, 0.02, 0.02, 0.015, 0.015];
+
+        for (let i = 0; i < count; i++) {
+          const borough = weightedChoice(boroughNames, boroughWeights, rng);
+          const b = BOROUGHS[borough];
+          const lng = b.bounds[0][0] + rng() * (b.bounds[0][1] - b.bounds[0][0]);
+          const lat = b.bounds[1][0] + rng() * (b.bounds[1][1] - b.bounds[1][0]);
+          const type = weightedChoice(COMPLAINT_TYPES, typeWeights, rng);
+          const status = weightedChoice(STATUSES, STATUS_WEIGHTS, rng);
+          const daysAgo = Math.floor(rng() * 365);
+          const createdDate = new Date(now - daysAgo * 86400000);
+          const hour = Math.floor(rng() * 24);
+          createdDate.setHours(hour);
+          const resolutionDays = status === "Closed" ? Math.floor(rng() * 14) + 1 : null;
+
+          data.push({
+            id: 100000 + i,
+            lat, lng, borough, type, status,
+            createdDate,
+            hour,
+            daysAgo,
+            resolutionDays,
+            zipcode: String(10000 + Math.floor(rng() * 1500))
+          });
+        }
+        return data;
+      }
+
+      const allData = generateData(2500);
+
+      // ═══════════════════════════════════════
+      // ACTIVE FILTERS STATE
+      // ═══════════════════════════════════════
+      let activeTypes = new Set();
+      let activeTimeRange = "90d";
+
+      function getFilteredData() {
+        let filtered = allData;
+
+        // Time filter
+        const now = Date.now();
+        const rangeDays = { "7d": 7, "30d": 30, "90d": 90, "1y": 365, "all": 99999 };
+        const days = rangeDays[activeTimeRange] || 90;
+        filtered = filtered.filter(d => d.daysAgo <= days);
+
+        // Type filter
+        if (activeTypes.size > 0) {
+          filtered = filtered.filter(d => activeTypes.has(d.type));
+        }
+
+        return filtered;
+      }
+
+      // ═══════════════════════════════════════
+      // MAP SETUP
+      // ═══════════════════════════════════════
+
+      const map = new Map({ basemap: "dark-gray-vector" });
+
+      const view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-73.95, 40.72],
+        zoom: 11,
+        constraints: { minZoom: 10, maxZoom: 18 },
+        popup: {
+          dockEnabled: true,
+          dockOptions: { buttonEnabled: false, breakpoint: false, position: "bottom-right" }
+        }
+      });
+
+      const homeWidget = new Home({ view: view });
+      view.ui.add(homeWidget, "top-left");
+
+      // Feature layer from client-side graphics
+      function getColor(type) {
+        return COMPLAINT_COLORS[type] || "#78909c";
+      }
+
+      function getCategory(type) {
+        if (type.includes("Noise")) return "Noise";
+        if (type.includes("Heat")) return "Heat/Hot Water";
+        if (type.includes("Street") || type.includes("Sidewalk")) return "Street/Sidewalk";
+        if (type.includes("Water") || type.includes("Plumbing")) return "Water/Plumbing";
+        if (type.includes("Blocked")) return "Blocked Driveway";
+        if (type.includes("Illegal")) return "Illegal Parking";
+        return "Other";
+      }
+
+      const graphicsLayer = new GraphicsLayer();
+      map.add(graphicsLayer);
+
+      function buildGraphics(data) {
+        return data.map(d => new Graphic({
+          geometry: new Point({ longitude: d.lng, latitude: d.lat }),
+          symbol: new SimpleMarkerSymbol({
+            color: getColor(d.type),
+            size: 5,
+            outline: { color: [255, 255, 255, 0.3], width: 0.5 }
+          }),
+          attributes: {
+            id: d.id,
+            type: d.type,
+            borough: d.borough,
+            status: d.status,
+            createdDate: d.createdDate.toLocaleDateString(),
+            zipcode: d.zipcode,
+            category: getCategory(d.type)
+          },
+          popupTemplate: {
+            title: "{type}",
+            content: [
+              {
+                type: "fields",
+                fieldInfos: [
+                  { fieldName: "borough", label: "Borough" },
+                  { fieldName: "status", label: "Status" },
+                  { fieldName: "createdDate", label: "Created" },
+                  { fieldName: "zipcode", label: "ZIP Code" }
+                ]
+              }
+            ]
+          }
+        }));
+      }
+
+      function updateMap() {
+        const data = getFilteredData();
+        graphicsLayer.removeAll();
+        graphicsLayer.addMany(buildGraphics(data));
+      }
+
+      // ═══════════════════════════════════════
+      // CHARTS
+      // ═══════════════════════════════════════
+
+      const chartDefaults = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+        },
+        scales: {
+          x: {
+            ticks: { color: "#78909c", font: { size: 10 } },
+            grid: { color: "rgba(255,255,255,0.05)" }
+          },
+          y: {
+            ticks: { color: "#78909c", font: { size: 10 } },
+            grid: { color: "rgba(255,255,255,0.05)" }
+          }
+        }
+      };
+
+      // Types Chart (horizontal bar)
+      const typesCtx = document.getElementById("typesChart").getContext("2d");
+      const typesChart = new Chart(typesCtx, {
+        type: "bar",
+        data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
+        options: {
+          ...chartDefaults,
+          indexAxis: "y",
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: "#78909c", font: { size: 9 } }, grid: { color: "rgba(255,255,255,0.05)" } },
+            y: { ticks: { color: "#b0bec5", font: { size: 10 } }, grid: { display: false } }
+          }
+        }
+      });
+
+      // Timeline Chart (area)
+      const timeCtx = document.getElementById("timelineChart").getContext("2d");
+      const timelineChart = new Chart(timeCtx, {
+        type: "line",
+        data: { labels: [], datasets: [{ data: [], borderColor: "#00b4d8", backgroundColor: "rgba(0,180,216,0.15)", fill: true, tension: 0.4, pointRadius: 0 }] },
+        options: {
+          ...chartDefaults,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: "#78909c", font: { size: 9 }, maxTicksLimit: 8 }, grid: { color: "rgba(255,255,255,0.05)" } },
+            y: { ticks: { color: "#78909c", font: { size: 9 } }, grid: { color: "rgba(255,255,255,0.05)" }, beginAtZero: true }
+          }
+        }
+      });
+
+      // Status Chart (doughnut)
+      const statusCtx = document.getElementById("statusChart").getContext("2d");
+      const statusChart = new Chart(statusCtx, {
+        type: "doughnut",
+        data: {
+          labels: STATUSES,
+          datasets: [{
+            data: [0, 0, 0, 0],
+            backgroundColor: ["#ffa726", "#66bb6a", "#42a5f5", "#78909c"],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: "65%",
+          plugins: {
+            legend: {
+              position: "right",
+              labels: { color: "#b0bec5", font: { size: 11 }, padding: 12, usePointStyle: true }
+            }
+          }
+        }
+      });
+
+      // Hourly Chart
+      const hourlyCtx = document.getElementById("hourlyChart").getContext("2d");
+      const hourlyChart = new Chart(hourlyCtx, {
+        type: "bar",
+        data: {
+          labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+          datasets: [{ data: new Array(24).fill(0), backgroundColor: "rgba(0,180,216,0.6)", borderRadius: 2 }]
+        },
+        options: {
+          ...chartDefaults,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: "#78909c", font: { size: 8 }, maxTicksLimit: 12 }, grid: { display: false } },
+            y: { ticks: { color: "#78909c", font: { size: 9 } }, grid: { color: "rgba(255,255,255,0.05)" }, beginAtZero: true }
+          }
+        }
+      });
+
+      // ═══════════════════════════════════════
+      // UI BUILDERS
+      // ═══════════════════════════════════════
+
+      function buildTypeFilters() {
+        const container = document.getElementById("typeFilters");
+        const topTypes = [...new Set(allData.map(d => getCategory(d.type)))];
+        container.innerHTML = topTypes.map(t =>
+          `<div class="chip" data-type="${t}">${t}</div>`
+        ).join("");
+
+        container.addEventListener("click", (e) => {
+          const chip = e.target.closest(".chip");
+          if (!chip) return;
+          const type = chip.dataset.type;
+
+          // Map category back to complaint types
+          const matchingTypes = COMPLAINT_TYPES.filter(ct => getCategory(ct) === type);
+
+          if (chip.classList.contains("active")) {
+            chip.classList.remove("active");
+            matchingTypes.forEach(t => activeTypes.delete(t));
+          } else {
+            chip.classList.add("active");
+            matchingTypes.forEach(t => activeTypes.add(t));
+          }
+          updateAll();
+        });
+      }
+
+      function buildTimeFilter() {
+        document.querySelectorAll(".time-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            document.querySelectorAll(".time-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            activeTimeRange = btn.dataset.range;
+            updateAll();
+          });
+        });
+      }
+
+      // ═══════════════════════════════════════
+      // UPDATE ALL
+      // ═══════════════════════════════════════
+
+      function updateAll() {
+        const data = getFilteredData();
+
+        // Stats
+        const total = data.length;
+        const open = data.filter(d => d.status === "Open").length;
+        const closed = data.filter(d => d.status === "Closed").length;
+        const closedData = data.filter(d => d.resolutionDays !== null);
+        const avgDays = closedData.length > 0
+          ? (closedData.reduce((s, d) => s + d.resolutionDays, 0) / closedData.length).toFixed(1)
+          : "--";
+
+        // Top complaint
+        const typeCounts = {};
+        data.forEach(d => { typeCounts[d.type] = (typeCounts[d.type] || 0) + 1; });
+        const topType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0];
+
+        document.getElementById("statTotal").textContent = total.toLocaleString();
+        document.getElementById("statOpen").textContent = open.toLocaleString();
+        document.getElementById("statClosed").textContent = closed.toLocaleString();
+        document.getElementById("statAvgDays").textContent = avgDays;
+        document.getElementById("statTopType").textContent = topType ? topType[0].split(" - ")[0] : "--";
+        document.getElementById("totalBadge").textContent = `${total.toLocaleString()} requests`;
+
+        // Borough breakdown
+        const boroughCounts = {};
+        data.forEach(d => { boroughCounts[d.borough] = (boroughCounts[d.borough] || 0) + 1; });
+        const maxBorough = Math.max(...Object.values(boroughCounts), 1);
+        const boroughList = document.getElementById("boroughList");
+        boroughList.innerHTML = Object.keys(BOROUGHS).map(b => {
+          const count = boroughCounts[b] || 0;
+          const pct = (count / maxBorough * 100).toFixed(0);
+          return `
+            <div class="borough-row">
+              <span class="borough-name">${b}</span>
+              <span class="borough-count">${count.toLocaleString()}</span>
+            </div>
+            <div class="borough-bar" style="width:${pct}%"></div>
+          `;
+        }).join("");
+
+        // Types chart (top 8)
+        const sortedTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+        typesChart.data.labels = sortedTypes.map(t => t[0].length > 18 ? t[0].slice(0, 18) + "..." : t[0]);
+        typesChart.data.datasets[0].data = sortedTypes.map(t => t[1]);
+        typesChart.data.datasets[0].backgroundColor = sortedTypes.map(t => getColor(t[0]));
+        typesChart.update("none");
+
+        // Timeline chart - group by week
+        const weekCounts = {};
+        data.forEach(d => {
+          const week = new Date(d.createdDate);
+          week.setDate(week.getDate() - week.getDay());
+          const key = week.toISOString().slice(0, 10);
+          weekCounts[key] = (weekCounts[key] || 0) + 1;
+        });
+        const sortedWeeks = Object.entries(weekCounts).sort((a, b) => a[0].localeCompare(b[0]));
+        timelineChart.data.labels = sortedWeeks.map(w => {
+          const d = new Date(w[0]);
+          return `${d.getMonth()+1}/${d.getDate()}`;
+        });
+        timelineChart.data.datasets[0].data = sortedWeeks.map(w => w[1]);
+        timelineChart.update("none");
+
+        // Status chart
+        const statusCounts = STATUSES.map(s => data.filter(d => d.status === s).length);
+        statusChart.data.datasets[0].data = statusCounts;
+        statusChart.update("none");
+
+        // Hourly chart
+        const hourlyCounts = new Array(24).fill(0);
+        data.forEach(d => { hourlyCounts[d.hour]++; });
+        hourlyChart.data.datasets[0].data = hourlyCounts;
+        hourlyChart.update("none");
+
+        // Update map
+        updateMap();
+      }
+
+      // ═══════════════════════════════════════
+      // INIT
+      // ═══════════════════════════════════════
+
+      view.when(() => {
+        buildTypeFilters();
+        buildTimeFilter();
+        updateAll();
+
+        // Hide loading
+        setTimeout(() => {
+          document.getElementById("loadingOverlay").classList.add("hidden");
+        }, 800);
+      });
+
+    });
+  </script>
+</body>
+</html>
