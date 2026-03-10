@@ -227,6 +227,88 @@
     }
 
     .esri-ui { display: none !important; }
+
+    /* Legend panel */
+    .legend-panel {
+      position: absolute;
+      bottom: 32px;
+      right: 24px;
+      z-index: 20;
+      background: rgba(15, 20, 40, 0.85);
+      backdrop-filter: blur(12px);
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 12px 16px;
+      pointer-events: none;
+    }
+
+    .legend-title {
+      font-size: 9px;
+      color: #4a5568;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: 8px;
+    }
+
+    .legend-section {
+      margin-bottom: 10px;
+    }
+
+    .legend-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .legend-section-label {
+      font-size: 10px;
+      color: #7b8ca8;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .legend-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .legend-swatch {
+      width: 20px;
+      height: 6px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .legend-text {
+      font-size: 11px;
+      color: #b0bcc8;
+    }
+
+    .legend-gradient {
+      display: flex;
+      gap: 2px;
+      margin-bottom: 4px;
+    }
+
+    .legend-gradient-bar {
+      flex: 1;
+      height: 6px;
+      border-radius: 3px;
+    }
+
+    .legend-gradient-labels {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .legend-gradient-labels span {
+      font-size: 9px;
+      color: #4a5568;
+    }
   </style>
 </head>
 <body>
@@ -288,6 +370,57 @@
   </div>
 
   <div class="instruction" id="instruction">Move your cursor to explore the map</div>
+
+  <!-- Legend -->
+  <div class="legend-panel">
+    <div class="legend-title">Bar Chart Legend</div>
+
+    <div class="legend-section">
+      <div class="legend-section-label">Category (bar color)</div>
+      <div class="legend-row">
+        <div class="legend-swatch" style="background:rgb(249,115,22)"></div>
+        <span class="legend-text">Noise</span>
+      </div>
+      <div class="legend-row">
+        <div class="legend-swatch" style="background:rgb(59,130,246)"></div>
+        <span class="legend-text">Parking</span>
+      </div>
+      <div class="legend-row">
+        <div class="legend-swatch" style="background:rgb(239,68,68)"></div>
+        <span class="legend-text">Heating</span>
+      </div>
+      <div class="legend-row">
+        <div class="legend-swatch" style="background:rgb(168,85,247)"></div>
+        <span class="legend-text">Rodents</span>
+      </div>
+      <div class="legend-row">
+        <div class="legend-swatch" style="background:rgb(34,197,94)"></div>
+        <span class="legend-text">Illegal Dumping</span>
+      </div>
+    </div>
+
+    <div class="legend-section">
+      <div class="legend-section-label">Year (shade within bars)</div>
+      <div class="legend-gradient">
+        <div class="legend-gradient-bar" style="background:rgba(100,140,210,0.55)"></div>
+        <div class="legend-gradient-bar" style="background:rgba(130,170,240,0.65)"></div>
+        <div class="legend-gradient-bar" style="background:rgba(170,200,255,0.78)"></div>
+        <div class="legend-gradient-bar" style="background:rgba(220,235,255,0.9)"></div>
+      </div>
+      <div class="legend-gradient-labels">
+        <span>2022</span>
+        <span>2023</span>
+        <span>2024</span>
+        <span>2025</span>
+      </div>
+      <div style="font-size:9px;color:#4a5568;margin-top:4px;">Darker = older &nbsp; Lighter = newer</div>
+    </div>
+
+    <div class="legend-section">
+      <div class="legend-section-label">Bar length</div>
+      <div style="font-size:10px;color:#7b8ca8;">Longer bar = more complaints</div>
+    </div>
+  </div>
 
   <div class="lens-tooltip" id="lensTooltip">
     <div class="lens-count" id="lensCount">0</div>
