@@ -5,16 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NYC 311 Service Requests Dashboard</title>
 
-  <!-- ArcGIS JS SDK + Calcite (unified) -->
-  <link rel="stylesheet" href="https://js.arcgis.com/4.31/esri/themes/dark/main.css" />
-  <script src="https://js.arcgis.com/4.31/"></script>
-
-  <!-- Calcite Components -->
-  <script type="module" src="https://js.arcgis.com/calcite-components/2.13.2/calcite.esm.js"></script>
-  <link rel="stylesheet" type="text/css" href="https://js.arcgis.com/calcite-components/2.13.2/calcite.css" />
-
-  <!-- Chart.js for charts -->
+  <!-- Chart.js MUST load before ArcGIS to avoid AMD/UMD conflict -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <!-- ArcGIS JS SDK 4.27 (no API key required for basemaps) -->
+  <link rel="stylesheet" href="https://js.arcgis.com/4.27/esri/themes/dark/main.css" />
+  <script src="https://js.arcgis.com/4.27/"></script>
 
   <style>
     html, body {
@@ -943,6 +939,13 @@
         setTimeout(() => {
           document.getElementById("loadingOverlay").classList.add("hidden");
         }, 800);
+      }, (error) => {
+        console.error("MapView failed to load:", error);
+        // Still show the dashboard even if map fails
+        buildTypeFilters();
+        buildTimeFilter();
+        updateAll();
+        document.getElementById("loadingOverlay").classList.add("hidden");
       });
 
     });
