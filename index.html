@@ -243,9 +243,116 @@
     .load-screen.off { opacity: 0; pointer-events: none; }
 
     .esri-ui { display: none !important; }
+
+    /* API key dialog */
+    .key-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(4,6,14,0.92);
+      backdrop-filter: blur(12px);
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.4s;
+    }
+
+    .key-overlay.off { opacity: 0; pointer-events: none; }
+
+    .key-box {
+      background: var(--bg-glass);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px 36px;
+      max-width: 440px;
+      width: 90%;
+      text-align: center;
+    }
+
+    .key-box h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .key-box p {
+      font-size: 13px;
+      color: var(--text-2);
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .key-box a {
+      color: var(--brand);
+      text-decoration: none;
+    }
+
+    .key-box a:hover { text-decoration: underline; }
+
+    .key-input {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.04);
+      color: #fff;
+      font-size: 13px;
+      font-family: monospace;
+      outline: none;
+      margin-bottom: 14px;
+      transition: border-color 0.2s;
+    }
+
+    .key-input:focus { border-color: var(--brand); }
+
+    .key-input::placeholder { color: var(--text-3); }
+
+    .key-submit {
+      padding: 10px 28px;
+      border: none;
+      border-radius: 8px;
+      background: var(--brand);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .key-submit:hover { opacity: 0.85; }
+
+    .key-error {
+      color: #ef4444;
+      font-size: 12px;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .key-saved {
+      font-size: 11px;
+      color: var(--text-3);
+      margin-top: 12px;
+    }
   </style>
 </head>
 <body class="calcite-mode-dark">
+
+  <!-- API Key Dialog -->
+  <div class="key-overlay" id="keyOverlay">
+    <div class="key-box">
+      <h2>ArcGIS API Key</h2>
+      <p>
+        This app uses ArcGIS basemaps which require a free developer API key.<br>
+        Get yours at <a href="https://developers.arcgis.com/sign-up/" target="_blank" rel="noopener">developers.arcgis.com</a>
+      </p>
+      <input class="key-input" id="keyInput" type="password" placeholder="Paste your API key here..." autocomplete="off" />
+      <br>
+      <button class="key-submit" id="keySubmit">Start Exploring</button>
+      <div class="key-error" id="keyError">Please enter a valid API key</div>
+      <div class="key-saved">Your key is stored locally in your browser only &mdash; never sent to any server.</div>
+    </div>
+  </div>
 
   <div class="load-screen" id="loader">
     <calcite-loader text="Loading 311 data..." type="indeterminate"></calcite-loader>
@@ -320,15 +427,53 @@
 
   <script type="module">
     // ═══════════════════════════════════════
+    // API KEY — stored in localStorage only
+    // ═══════════════════════════════════════
+    const KEY_STORAGE = "arcgis_api_key_311";
+
+    function getStoredKey() { return localStorage.getItem(KEY_STORAGE); }
+
+    async function waitForApiKey() {
+      const stored = getStoredKey();
+      if (stored) return stored;
+
+      // Show the dialog
+      const overlay = document.getElementById("keyOverlay");
+      const input = document.getElementById("keyInput");
+      const btn = document.getElementById("keySubmit");
+      const errEl = document.getElementById("keyError");
+      overlay.classList.remove("off");
+
+      return new Promise(resolve => {
+        function submit() {
+          const val = input.value.trim();
+          if (!val || val.length < 10) {
+            errEl.style.display = "block";
+            return;
+          }
+          errEl.style.display = "none";
+          localStorage.setItem(KEY_STORAGE, val);
+          overlay.classList.add("off");
+          resolve(val);
+        }
+        btn.addEventListener("click", submit);
+        input.addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
+      });
+    }
+
+    const apiKey = await waitForApiKey();
+
+    // ═══════════════════════════════════════
     // ArcGIS 5.0 ES Module imports
     // ═══════════════════════════════════════
-    const [Map, MapView, WebTileLayer, Basemap, Point] = await $arcgis.import([
+    const [Map, MapView, Point, esriConfig] = await $arcgis.import([
       "@arcgis/core/Map.js",
       "@arcgis/core/views/MapView.js",
-      "@arcgis/core/layers/WebTileLayer.js",
-      "@arcgis/core/Basemap.js",
-      "@arcgis/core/geometry/Point.js"
+      "@arcgis/core/geometry/Point.js",
+      "@arcgis/core/config.js"
     ]);
+
+    esriConfig.apiKey = apiKey;
 
     // ═══════════════════════════════════════
     // CONFIG
@@ -398,15 +543,9 @@
     }
 
     // ═══════════════════════════════════════
-    // MAP — Free dark basemap via Carto tiles
+    // MAP — ArcGIS dark-gray vector basemap
     // ═══════════════════════════════════════
-    const darkTiles = new WebTileLayer({
-      urlTemplate: "https://{subDomain}.basemaps.cartocdn.com/dark_all/{level}/{col}/{row}.png",
-      subDomains: ["a","b","c","d"],
-      copyright: "Map tiles by Carto"
-    });
-
-    const map = new Map({ basemap: new Basemap({ baseLayers: [darkTiles] }) });
+    const map = new Map({ basemap: "dark-gray-vector" });
 
     const view = new MapView({
       container: "viewDiv",
@@ -625,8 +764,10 @@
       setTimeout(()=>document.getElementById("loader").classList.add("off"),600);
     },err=>{
       console.error("View init error:",err);
-      proj(); requestAnimationFrame(draw);
-      document.getElementById("loader").classList.add("off");
+      // If basemap fails, likely bad API key — clear and reload
+      localStorage.removeItem(KEY_STORAGE);
+      alert("Invalid API key. The page will reload so you can enter a valid one.");
+      location.reload();
     });
   </script>
 </body>
