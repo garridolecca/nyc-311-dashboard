@@ -5,317 +5,250 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Calling 311 in New York City</title>
 
-  <!-- Chart.js MUST load before ArcGIS to avoid AMD conflict -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-
-  <!-- ArcGIS JS SDK 4.27 -->
-  <link rel="stylesheet" href="https://js.arcgis.com/4.27/esri/themes/dark/main.css" />
-  <script src="https://js.arcgis.com/4.27/"></script>
+  <!-- ArcGIS Maps SDK 5.0 — single script: Core + Calcite + Components -->
+  <script type="module" src="https://js.arcgis.com/5.0/"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand: #6c8cff;
+      --brand-glow: rgba(108,140,255,0.30);
+      --bg-deep: #070b14;
+      --bg-glass: rgba(10, 14, 28, 0.82);
+      --text-1: #edf0f7;
+      --text-2: #8b9ab8;
+      --text-3: #3e4a64;
+      --border: rgba(255,255,255,0.06);
+      --radius: 12px;
+    }
 
     html, body {
       height: 100%;
       width: 100%;
       overflow: hidden;
-      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-      background: #0a0e1a;
-      color: #e0e0e0;
-      cursor: none;
+      background: var(--bg-deep);
+      color: var(--text-1);
+      font-family: var(--calcite-font-family, "Inter", system-ui, sans-serif);
     }
 
+    /* Calcite dark theme overrides */
+    calcite-shell {
+      --calcite-color-brand: var(--brand);
+    }
+
+    calcite-navigation {
+      --calcite-navigation-background: var(--bg-glass);
+      --calcite-navigation-border-color: var(--border);
+    }
+
+    /* Map */
     #viewDiv {
       position: absolute;
       inset: 0;
       z-index: 1;
     }
 
-    #lensCanvas {
-      position: absolute;
-      inset: 0;
-      z-index: 10;
-      pointer-events: none;
-    }
+    /* Canvas + interaction */
+    #lensCanvas { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
+    #interactionLayer { position: absolute; inset: 0; z-index: 15; cursor: none; }
 
-    #interactionLayer {
+    /* Glass floating panels */
+    .glass {
       position: absolute;
-      inset: 0;
-      z-index: 15;
-      cursor: none;
-    }
-
-    /* Title */
-    .title-bar {
-      position: absolute;
-      top: 0; left: 0; right: 0;
       z-index: 20;
-      padding: 20px 32px;
-      background: linear-gradient(180deg, rgba(10,14,26,0.85) 0%, rgba(10,14,26,0) 100%);
-      pointer-events: none;
-    }
-
-    .title-bar h1 {
-      font-size: 26px;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: -0.5px;
-    }
-
-    .title-bar .subtitle {
-      font-size: 13px;
-      color: #7b8ca8;
-      margin-top: 4px;
-    }
-
-    /* Shared pill style */
-    .pill-bar {
-      z-index: 20;
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      padding: 6px;
       display: flex;
-      gap: 4px;
-      padding: 4px;
-      background: rgba(15, 20, 40, 0.85);
-      backdrop-filter: blur(12px);
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.08);
+      gap: 3px;
     }
 
-    .pill-btn {
+    .glass.col { flex-direction: column; }
+
+    /* Chip-like buttons */
+    .g-btn {
       padding: 7px 14px;
-      border: none;
-      border-radius: 7px;
+      border: 1px solid transparent;
+      border-radius: 8px;
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       background: transparent;
-      color: #7b8ca8;
-      transition: all 0.25s;
+      color: var(--text-2);
+      transition: all 0.2s;
       display: flex;
       align-items: center;
       gap: 7px;
+      white-space: nowrap;
+      font-family: inherit;
     }
 
-    .pill-btn:hover { color: #c0c8d8; background: rgba(255,255,255,0.05); }
-    .pill-btn.active { color: #fff; background: rgba(255,255,255,0.12); }
+    .g-btn:hover { color: var(--text-1); background: rgba(255,255,255,0.04); }
 
-    .cat-dot {
+    .g-btn.on {
+      color: #fff;
+      background: rgba(108,140,255,0.16);
+      border-color: rgba(108,140,255,0.25);
+      box-shadow: 0 0 12px rgba(108,140,255,0.10);
+    }
+
+    .g-dot {
       width: 8px;
       height: 8px;
       border-radius: 50%;
       flex-shrink: 0;
+      box-shadow: 0 0 6px currentColor;
     }
 
-    /* Category bar — bottom center */
-    .category-bar {
-      position: absolute;
-      bottom: 32px;
-      left: 50%;
-      transform: translateX(-50%);
-    }
-
-    /* Year bar — top right */
-    .year-bar {
-      position: absolute;
-      top: 20px;
-      right: 32px;
-    }
-
-    /* Radius bar — left center */
-    .radius-bar {
-      position: absolute;
-      left: 24px;
-      top: 50%;
-      transform: translateY(-50%);
-      flex-direction: column;
-    }
-
-    .radius-bar .pill-btn {
-      padding: 6px 12px;
-      font-size: 11px;
-      justify-content: center;
-    }
-
-    .radius-label {
+    .g-label {
       font-size: 9px;
-      color: #4a5568;
+      color: var(--text-3);
       text-transform: uppercase;
-      letter-spacing: 1.2px;
+      letter-spacing: 1.4px;
       text-align: center;
-      padding: 4px 0 2px;
+      padding: 2px 8px 4px;
+    }
+
+    /* Positions */
+    .cat-bar  { bottom: 24px; left: 50%; transform: translateX(-50%); }
+    .year-bar { top: 16px; right: 16px; }
+    .rad-bar  { left: 16px; top: 50%; transform: translateY(-50%); }
+
+    .rad-bar .g-btn { padding: 5px 12px; font-size: 11px; justify-content: center; }
+
+    /* Legend */
+    .legend {
+      bottom: 24px;
+      right: 16px;
+      flex-direction: column;
+      padding: 10px 14px;
+      gap: 8px;
       pointer-events: none;
     }
 
+    .leg-title {
+      font-size: 9px;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+    }
+
+    .leg-sub {
+      font-size: 10px;
+      color: var(--text-2);
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+
+    .grad-row { display: flex; gap: 3px; }
+    .grad-bar { flex: 1; height: 7px; border-radius: 4px; }
+
+    .grad-labels { display: flex; justify-content: space-between; }
+    .grad-labels span { font-size: 9px; color: var(--text-3); }
+
+    .leg-note { font-size: 9px; color: var(--text-3); margin-top: 1px; }
+
     /* Lens tooltip */
-    .lens-tooltip {
+    .lens-tt {
       position: absolute;
       z-index: 25;
       pointer-events: none;
       opacity: 0;
-      transition: opacity 0.2s;
+      transition: opacity 0.15s;
       text-align: center;
     }
 
-    .lens-tooltip.visible { opacity: 1; }
+    .lens-tt.vis { opacity: 1; }
 
-    .lens-count {
-      font-size: 38px;
-      font-weight: 700;
+    .lens-num {
+      font-size: 42px;
+      font-weight: 800;
       color: #fff;
       line-height: 1;
+      letter-spacing: -1.5px;
+      text-shadow: 0 2px 24px rgba(0,0,0,0.6);
     }
 
-    .lens-sublabel {
-      font-size: 11px;
-      color: #7b8ca8;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      margin-top: 2px;
-    }
-
-    .lens-miles {
+    .lens-sub {
       font-size: 10px;
-      color: #4a5568;
+      color: var(--text-2);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-top: 3px;
+    }
+
+    .lens-mi {
+      font-size: 9px;
+      color: var(--text-3);
       margin-top: 1px;
     }
 
-    /* Instruction */
-    .instruction {
+    /* Title */
+    .title-grad {
       position: absolute;
-      bottom: 90px;
+      top: 0; left: 0; right: 0;
+      z-index: 18;
+      padding: 20px 24px;
+      background: linear-gradient(180deg, rgba(7,11,20,0.92) 0%, transparent 100%);
+      pointer-events: none;
+    }
+
+    .title-grad h1 {
+      font-size: 24px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+
+    .title-grad .sub {
+      font-size: 12px;
+      color: var(--text-2);
+      margin-top: 3px;
+      font-weight: 500;
+    }
+
+    /* Instruction */
+    .instr {
+      position: absolute;
+      bottom: 80px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 20;
       font-size: 12px;
-      color: #4a5568;
+      color: var(--text-3);
       letter-spacing: 0.5px;
       pointer-events: none;
       transition: opacity 1s;
     }
 
-    .instruction.hidden { opacity: 0; }
+    .instr.off { opacity: 0; }
 
     /* Loading */
-    .loading-overlay {
+    .load-screen {
       position: fixed;
       inset: 0;
-      background: #0a0e1a;
+      background: var(--bg-deep);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       z-index: 9999;
-      transition: opacity 0.6s;
+      transition: opacity 0.5s;
     }
 
-    .loading-overlay.hidden { opacity: 0; pointer-events: none; }
-
-    .loading-ring {
-      width: 52px; height: 52px;
-      border: 2px solid rgba(255,255,255,0.06);
-      border-top: 2px solid #6c8cff;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .loading-text {
-      margin-top: 16px;
-      font-size: 13px;
-      color: #4a5568;
-      letter-spacing: 1px;
-    }
+    .load-screen.off { opacity: 0; pointer-events: none; }
 
     .esri-ui { display: none !important; }
-
-    /* Legend panel */
-    .legend-panel {
-      position: absolute;
-      bottom: 32px;
-      right: 24px;
-      z-index: 20;
-      background: rgba(15, 20, 40, 0.85);
-      backdrop-filter: blur(12px);
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,0.08);
-      padding: 12px 16px;
-      pointer-events: none;
-    }
-
-    .legend-title {
-      font-size: 9px;
-      color: #4a5568;
-      text-transform: uppercase;
-      letter-spacing: 1.2px;
-      margin-bottom: 8px;
-    }
-
-    .legend-section {
-      margin-bottom: 10px;
-    }
-
-    .legend-section:last-child {
-      margin-bottom: 0;
-    }
-
-    .legend-section-label {
-      font-size: 10px;
-      color: #7b8ca8;
-      font-weight: 600;
-      margin-bottom: 5px;
-    }
-
-    .legend-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 4px;
-    }
-
-    .legend-row:last-child {
-      margin-bottom: 0;
-    }
-
-    .legend-swatch {
-      width: 20px;
-      height: 6px;
-      border-radius: 3px;
-      flex-shrink: 0;
-    }
-
-    .legend-text {
-      font-size: 11px;
-      color: #b0bcc8;
-    }
-
-    .legend-gradient {
-      display: flex;
-      gap: 2px;
-      margin-bottom: 4px;
-    }
-
-    .legend-gradient-bar {
-      flex: 1;
-      height: 6px;
-      border-radius: 3px;
-    }
-
-    .legend-gradient-labels {
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .legend-gradient-labels span {
-      font-size: 9px;
-      color: #4a5568;
-    }
   </style>
 </head>
-<body>
+<body class="calcite-mode-dark">
 
-  <div class="loading-overlay" id="loadingOverlay">
-    <div class="loading-ring"></div>
-    <div class="loading-text">Loading 311 data...</div>
+  <div class="load-screen" id="loader">
+    <calcite-loader text="Loading 311 data..." type="indeterminate"></calcite-loader>
   </div>
 
   <div id="viewDiv"></div>
@@ -323,574 +256,377 @@
   <div id="interactionLayer"></div>
 
   <!-- Title -->
-  <div class="title-bar">
+  <div class="title-grad">
     <h1>Calling 311 in New York City</h1>
-    <div class="subtitle">7 million service requests, 2022 &ndash; 2025</div>
+    <div class="sub">7 million service requests, 2022 &ndash; 2025</div>
   </div>
 
-  <!-- Year selector -->
-  <div class="pill-bar year-bar">
-    <button class="pill-btn active" data-year="all">All</button>
-    <button class="pill-btn" data-year="2022">2022</button>
-    <button class="pill-btn" data-year="2023">2023</button>
-    <button class="pill-btn" data-year="2024">2024</button>
-    <button class="pill-btn" data-year="2025">2025</button>
+  <!-- Year -->
+  <div class="glass year-bar" id="yearBar">
+    <button class="g-btn on" data-v="all">All</button>
+    <button class="g-btn" data-v="2022">2022</button>
+    <button class="g-btn" data-v="2023">2023</button>
+    <button class="g-btn" data-v="2024">2024</button>
+    <button class="g-btn" data-v="2025">2025</button>
   </div>
 
-  <!-- Radius selector -->
-  <div class="pill-bar radius-bar">
-    <div class="radius-label">Radius</div>
-    <button class="pill-btn" data-miles="1">1 mi</button>
-    <button class="pill-btn active" data-miles="2">2 mi</button>
-    <button class="pill-btn" data-miles="3">3 mi</button>
-    <button class="pill-btn" data-miles="4">4 mi</button>
-    <button class="pill-btn" data-miles="5">5 mi</button>
+  <!-- Radius -->
+  <div class="glass col rad-bar" id="radBar">
+    <div class="g-label">Radius</div>
+    <button class="g-btn" data-v="1">1 mi</button>
+    <button class="g-btn on" data-v="2">2 mi</button>
+    <button class="g-btn" data-v="3">3 mi</button>
+    <button class="g-btn" data-v="4">4 mi</button>
+    <button class="g-btn" data-v="5">5 mi</button>
   </div>
 
-  <!-- Category bar -->
-  <div class="pill-bar category-bar">
-    <button class="pill-btn active" data-cat="all">
-      <div class="cat-dot" style="background:#fff"></div>All
-    </button>
-    <button class="pill-btn" data-cat="noise">
-      <div class="cat-dot" style="background:#f97316"></div>Noise
-    </button>
-    <button class="pill-btn" data-cat="parking">
-      <div class="cat-dot" style="background:#3b82f6"></div>Parking
-    </button>
-    <button class="pill-btn" data-cat="heating">
-      <div class="cat-dot" style="background:#ef4444"></div>Heating
-    </button>
-    <button class="pill-btn" data-cat="rodent">
-      <div class="cat-dot" style="background:#a855f7"></div>Rodents
-    </button>
-    <button class="pill-btn" data-cat="dumping">
-      <div class="cat-dot" style="background:#22c55e"></div>Illegal Dumping
-    </button>
+  <!-- Categories -->
+  <div class="glass cat-bar" id="catBar">
+    <button class="g-btn on" data-v="all"><div class="g-dot" style="background:#fff"></div>All</button>
+    <button class="g-btn" data-v="noise"><div class="g-dot" style="color:#f97316;background:#f97316"></div>Noise</button>
+    <button class="g-btn" data-v="parking"><div class="g-dot" style="color:#3b82f6;background:#3b82f6"></div>Parking</button>
+    <button class="g-btn" data-v="heating"><div class="g-dot" style="color:#ef4444;background:#ef4444"></div>Heating</button>
+    <button class="g-btn" data-v="rodent"><div class="g-dot" style="color:#a855f7;background:#a855f7"></div>Rodents</button>
+    <button class="g-btn" data-v="dumping"><div class="g-dot" style="color:#22c55e;background:#22c55e"></div>Dumping</button>
   </div>
-
-  <div class="instruction" id="instruction">Move your cursor to explore the map</div>
 
   <!-- Legend -->
-  <div class="legend-panel">
-    <div class="legend-title">Bar Chart Legend</div>
-
-    <div class="legend-section">
-      <div class="legend-section-label">Year (shade within bars)</div>
-      <div class="legend-gradient">
-        <div class="legend-gradient-bar" style="background:rgba(100,140,210,0.55)"></div>
-        <div class="legend-gradient-bar" style="background:rgba(130,170,240,0.65)"></div>
-        <div class="legend-gradient-bar" style="background:rgba(170,200,255,0.78)"></div>
-        <div class="legend-gradient-bar" style="background:rgba(220,235,255,0.9)"></div>
+  <div class="glass legend">
+    <div class="leg-title">Bar Chart Legend</div>
+    <div>
+      <div class="leg-sub">Year (shade)</div>
+      <div class="grad-row">
+        <div class="grad-bar" style="background:rgba(100,140,210,0.55)"></div>
+        <div class="grad-bar" style="background:rgba(130,170,240,0.65)"></div>
+        <div class="grad-bar" style="background:rgba(170,200,255,0.78)"></div>
+        <div class="grad-bar" style="background:rgba(220,235,255,0.92)"></div>
       </div>
-      <div class="legend-gradient-labels">
-        <span>2022</span>
-        <span>2023</span>
-        <span>2024</span>
-        <span>2025</span>
-      </div>
-      <div style="font-size:9px;color:#4a5568;margin-top:4px;">Darker = older &nbsp; Lighter = newer</div>
+      <div class="grad-labels"><span>2022</span><span>2023</span><span>2024</span><span>2025</span></div>
+      <div class="leg-note">Darker = older &middot; Lighter = newer</div>
     </div>
-
-    <div class="legend-section">
-      <div class="legend-section-label">Bar length</div>
-      <div style="font-size:10px;color:#7b8ca8;">Longer bar = more complaints</div>
+    <div>
+      <div class="leg-sub">Bar length</div>
+      <div class="leg-note">Longer = more complaints</div>
     </div>
   </div>
 
-  <div class="lens-tooltip" id="lensTooltip">
-    <div class="lens-count" id="lensCount">0</div>
-    <div class="lens-sublabel">complaints</div>
-    <div class="lens-miles" id="lensMiles">2 mi radius</div>
+  <div class="instr" id="instr">Move your cursor to explore the map</div>
+
+  <div class="lens-tt" id="ltt">
+    <div class="lens-num" id="lNum">0</div>
+    <div class="lens-sub">complaints</div>
+    <div class="lens-mi" id="lMi">2 mi radius</div>
   </div>
 
-  <script>
-    require([
-      "esri/Map",
-      "esri/views/MapView",
-      "esri/geometry/Point"
-    ], function(Map, MapView, Point) {
+  <script type="module">
+    // ═══════════════════════════════════════
+    // ArcGIS 5.0 ES Module imports
+    // ═══════════════════════════════════════
+    const [Map, MapView, WebTileLayer, Basemap, Point] = await $arcgis.import([
+      "@arcgis/core/Map.js",
+      "@arcgis/core/views/MapView.js",
+      "@arcgis/core/layers/WebTileLayer.js",
+      "@arcgis/core/Basemap.js",
+      "@arcgis/core/geometry/Point.js"
+    ]);
 
-      // ═══════════════════════════════════════
-      // CONFIG
-      // ═══════════════════════════════════════
-      const MILES_TO_METERS = 1609.344;
-      const TOTAL_POINTS = 6000;
-      const POINT_R_DIM = 1.2;
-      const POINT_R_BRIGHT = 2.8;
-      const BAR_MAX_LENGTH = 70;   // max radial bar length in px
-      const BAR_WIDTH = 7;         // width of each year sub-bar
-      const BAR_GAP = 2;           // gap between year sub-bars
-      const RING_GAP = 14;         // gap between lens circle and bars
-      const YEARS = [2022, 2023, 2024, 2025];
-      const YEAR_COLORS = {
-        2022: [100, 140, 210],
-        2023: [130, 170, 240],
-        2024: [170, 200, 255],
-        2025: [220, 235, 255]
-      };
+    // ═══════════════════════════════════════
+    // CONFIG
+    // ═══════════════════════════════════════
+    const M2M = 1609.344;
+    const N = 6000;
+    const PR_DIM = 1.2, PR_BRI = 2.8;
+    const BAR_MAX = 70, BAR_W = 7, RING_GAP = 14;
+    const YRS = [2022, 2023, 2024, 2025];
+    const YR_C = { 2022:[100,140,210], 2023:[130,170,240], 2024:[170,200,255], 2025:[220,235,255] };
 
-      const CATEGORIES = {
-        noise:   { color: [249, 115, 22],  label: "Noise" },
-        parking: { color: [59, 130, 246],  label: "Parking" },
-        heating: { color: [239, 68, 68],   label: "Heating" },
-        rodent:  { color: [168, 85, 247],  label: "Rodents" },
-        dumping: { color: [34, 197, 94],   label: "Illegal Dumping" }
-      };
+    const CATS = {
+      noise:   { c:[249,115,22],  l:"Noise" },
+      parking: { c:[59,130,246],  l:"Parking" },
+      heating: { c:[239,68,68],   l:"Heating" },
+      rodent:  { c:[168,85,247],  l:"Rodents" },
+      dumping: { c:[34,197,94],   l:"Dumping" }
+    };
+    const CK = Object.keys(CATS);
 
-      const CAT_KEYS = Object.keys(CATEGORIES);
+    // ═══════════════════════════════════════
+    // DATA
+    // ═══════════════════════════════════════
+    function rng(s){return()=>{s=(s*16807)%2147483647;return(s-1)/2147483646}}
+    function pw(it,wt,r){const v=r();let c=0;for(let i=0;i<it.length;i++){c+=wt[i];if(v<c)return it[i]}return it[it.length-1]}
 
-      // ═══════════════════════════════════════
-      // DATA GENERATION
-      // ═══════════════════════════════════════
-      function seededRNG(seed) {
-        let s = seed;
-        return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+    const BOR=[
+      {n:"Manhattan",w:.22,lo:[-74.02,-73.93],la:[40.70,40.88]},
+      {n:"Brooklyn",w:.28,lo:[-74.04,-73.86],la:[40.57,40.74]},
+      {n:"Queens",w:.22,lo:[-73.96,-73.70],la:[40.56,40.80]},
+      {n:"Bronx",w:.20,lo:[-73.93,-73.77],la:[40.79,40.92]},
+      {n:"Staten Island",w:.08,lo:[-74.26,-74.05],la:[40.50,40.65]}
+    ];
+
+    const BCW={
+      Manhattan:{noise:.35,parking:.15,heating:.25,rodent:.10,dumping:.15},
+      Brooklyn:{noise:.25,parking:.20,heating:.25,rodent:.15,dumping:.15},
+      Queens:{noise:.20,parking:.25,heating:.20,rodent:.15,dumping:.20},
+      Bronx:{noise:.20,parking:.15,heating:.35,rodent:.20,dumping:.10},
+      "Staten Island":{noise:.15,parking:.20,heating:.15,rodent:.10,dumping:.40}
+    };
+
+    function gen(n){
+      const r=rng(311),pts=[],bn=BOR.map(b=>b.n),bw=BOR.map(b=>b.w),yw=[.22,.26,.28,.24];
+      for(let i=0;i<n;i++){
+        const bo=pw(bn,bw,r),b=BOR.find(x=>x.n===bo);
+        const lo=b.lo[0]+r()*(b.lo[1]-b.lo[0]),la=b.la[0]+r()*(b.la[1]-b.la[0]);
+        const cw=BCW[bo],ca=pw(CK,CK.map(k=>cw[k]),r),yr=pw(YRS,yw,r);
+        pts.push({lo,la,ca,yr});
       }
+      return pts;
+    }
 
-      const BOROUGHS = [
-        { name: "Manhattan",     w: 0.22, lngR: [-74.02, -73.93], latR: [40.70, 40.88] },
-        { name: "Brooklyn",      w: 0.28, lngR: [-74.04, -73.86], latR: [40.57, 40.74] },
-        { name: "Queens",        w: 0.22, lngR: [-73.96, -73.70], latR: [40.56, 40.80] },
-        { name: "Bronx",         w: 0.20, lngR: [-73.93, -73.77], latR: [40.79, 40.92] },
-        { name: "Staten Island", w: 0.08, lngR: [-74.26, -74.05], latR: [40.50, 40.65] }
-      ];
+    const allPts = gen(N);
 
-      const BOROUGH_CAT_W = {
-        "Manhattan":     { noise: 0.35, parking: 0.15, heating: 0.25, rodent: 0.10, dumping: 0.15 },
-        "Brooklyn":      { noise: 0.25, parking: 0.20, heating: 0.25, rodent: 0.15, dumping: 0.15 },
-        "Queens":        { noise: 0.20, parking: 0.25, heating: 0.20, rodent: 0.15, dumping: 0.20 },
-        "Bronx":         { noise: 0.20, parking: 0.15, heating: 0.35, rodent: 0.20, dumping: 0.10 },
-        "Staten Island": { noise: 0.15, parking: 0.20, heating: 0.15, rodent: 0.10, dumping: 0.40 }
-      };
+    // ═══════════════════════════════════════
+    // STATE
+    // ═══════════════════════════════════════
+    let aCat="all", aYr="all", rMi=2, mx=-999, my=-999, mOn=false, aR=0;
 
-      function pickW(items, weights, rng) {
-        const r = rng(); let c = 0;
-        for (let i = 0; i < items.length; i++) { c += weights[i]; if (r < c) return items[i]; }
-        return items[items.length - 1];
-      }
-
-      function generatePoints(n) {
-        const rng = seededRNG(311);
-        const pts = [];
-        const bNames = BOROUGHS.map(b => b.name);
-        const bWeights = BOROUGHS.map(b => b.w);
-        const yWeights = [0.22, 0.26, 0.28, 0.24];
-
-        for (let i = 0; i < n; i++) {
-          const borough = pickW(bNames, bWeights, rng);
-          const b = BOROUGHS.find(x => x.name === borough);
-          const lng = b.lngR[0] + rng() * (b.lngR[1] - b.lngR[0]);
-          const lat = b.latR[0] + rng() * (b.latR[1] - b.latR[0]);
-          const cw = BOROUGH_CAT_W[borough];
-          const cat = pickW(CAT_KEYS, CAT_KEYS.map(k => cw[k]), rng);
-          const year = pickW(YEARS, yWeights, rng);
-          pts.push({ lng, lat, cat, year });
-        }
-        return pts;
-      }
-
-      const allPoints = generatePoints(TOTAL_POINTS);
-
-      // ═══════════════════════════════════════
-      // STATE
-      // ═══════════════════════════════════════
-      let activeCat = "all";
-      let activeYear = "all";
-      let radiusMiles = 2;
-      let mouseX = -999, mouseY = -999;
-      let mouseOnMap = false;
-      let animLensR = 0;
-
-      function getFiltered() {
-        return allPoints.filter(p => {
-          if (activeCat !== "all" && p.cat !== activeCat) return false;
-          if (activeYear !== "all" && p.year !== parseInt(activeYear)) return false;
-          return true;
-        });
-      }
-
-      // Convert miles to screen pixels using map resolution
-      function milesToPixels(miles) {
-        if (!view.resolution) return 140;
-        return (miles * MILES_TO_METERS) / view.resolution;
-      }
-
-      // ═══════════════════════════════════════
-      // MAP
-      // ═══════════════════════════════════════
-      const map = new Map({ basemap: "dark-gray-vector" });
-      const view = new MapView({
-        container: "viewDiv",
-        map,
-        center: [-73.95, 40.72],
-        zoom: 11,
-        constraints: { minZoom: 10, maxZoom: 16 },
-        navigation: { mouseWheelZoomEnabled: true, browserTouchPanEnabled: true }
+    function filt(){
+      return allPts.filter(p=>{
+        if(aCat!=="all"&&p.ca!==aCat)return false;
+        if(aYr!=="all"&&p.yr!==parseInt(aYr))return false;
+        return true;
       });
+    }
 
-      // ═══════════════════════════════════════
-      // CANVAS
-      // ═══════════════════════════════════════
-      const canvas = document.getElementById("lensCanvas");
-      const ctx = canvas.getContext("2d");
+    // ═══════════════════════════════════════
+    // MAP — Free dark basemap via Carto tiles
+    // ═══════════════════════════════════════
+    const darkTiles = new WebTileLayer({
+      urlTemplate: "https://{subDomain}.basemaps.cartocdn.com/dark_all/{level}/{col}/{row}.png",
+      subDomains: ["a","b","c","d"],
+      copyright: "Map tiles by Carto"
+    });
 
-      function resizeCanvas() {
-        const dpr = window.devicePixelRatio;
-        canvas.width = window.innerWidth * dpr;
-        canvas.height = window.innerHeight * dpr;
-        canvas.style.width = window.innerWidth + "px";
-        canvas.style.height = window.innerHeight + "px";
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const map = new Map({ basemap: new Basemap({ baseLayers: [darkTiles] }) });
+
+    const view = new MapView({
+      container: "viewDiv",
+      map,
+      center: [-73.95, 40.72],
+      zoom: 11,
+      constraints: { minZoom: 10, maxZoom: 16 },
+      navigation: { mouseWheelZoomEnabled: true }
+    });
+
+    function m2px(mi){ return view.resolution ? (mi*M2M)/view.resolution : 140; }
+
+    // ═══════════════════════════════════════
+    // CANVAS
+    // ═══════════════════════════════════════
+    const cv = document.getElementById("lensCanvas");
+    const cx = cv.getContext("2d");
+
+    function rz(){
+      const d=devicePixelRatio;
+      cv.width=innerWidth*d; cv.height=innerHeight*d;
+      cv.style.width=innerWidth+"px"; cv.style.height=innerHeight+"px";
+      cx.setTransform(d,0,0,d,0,0);
+    }
+    addEventListener("resize",rz); rz();
+
+    // ═══════════════════════════════════════
+    // PROJECTION
+    // ═══════════════════════════════════════
+    let sp=[];
+    function proj(){
+      const f=filt(); sp=[];
+      for(const p of f){
+        const s=view.toScreen(new Point({longitude:p.lo,latitude:p.la}));
+        if(s) sp.push({x:s.x,y:s.y,ca:p.ca,yr:p.yr});
       }
-      window.addEventListener("resize", resizeCanvas);
-      resizeCanvas();
+    }
 
-      // ═══════════════════════════════════════
-      // PROJECTION
-      // ═══════════════════════════════════════
-      let screenPts = [];
+    // ═══════════════════════════════════════
+    // DRAW
+    // ═══════════════════════════════════════
+    function draw(){
+      const W=innerWidth,H=innerHeight;
+      cx.clearRect(0,0,W,H);
 
-      function projectPoints() {
-        const pts = getFiltered();
-        screenPts = [];
-        for (const p of pts) {
-          const sp = view.toScreen(new Point({ longitude: p.lng, latitude: p.lat }));
-          if (sp) screenPts.push({ sx: sp.x, sy: sp.y, cat: p.cat, year: p.year });
-        }
-      }
+      const tR=mOn?m2px(rMi):0;
+      aR+=(tR-aR)*0.1;
+      const R=aR,lx=mx,ly=my;
 
-      // ═══════════════════════════════════════
-      // DRAW FRAME
-      // ═══════════════════════════════════════
-      function drawFrame() {
-        const W = window.innerWidth;
-        const H = window.innerHeight;
-        ctx.clearRect(0, 0, W, H);
-
-        const targetR = mouseOnMap ? milesToPixels(radiusMiles) : 0;
-        animLensR += (targetR - animLensR) * 0.1;
-        const R = animLensR;
-        const lx = mouseX, ly = mouseY;
-
-        // Dim overlay
-        if (R > 2) {
-          ctx.save();
-          ctx.fillStyle = "rgba(6, 8, 16, 0.6)";
-          ctx.beginPath();
-          ctx.rect(0, 0, W, H);
-          ctx.arc(lx, ly, R, 0, Math.PI * 2, true);
-          ctx.fill();
-          ctx.restore();
-        }
-
-        // Collect inside points & draw all points
-        const inside = [];
-        for (const p of screenPts) {
-          const dx = p.sx - lx, dy = p.sy - ly;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          const isIn = dist < R;
-          const col = CATEGORIES[p.cat].color;
-
-          if (isIn) {
-            inside.push(p);
-            ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},0.92)`;
-            ctx.beginPath();
-            ctx.arc(p.sx, p.sy, POINT_R_BRIGHT, 0, Math.PI * 2);
-            ctx.fill();
-          } else {
-            ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},0.15)`;
-            ctx.beginPath();
-            ctx.arc(p.sx, p.sy, POINT_R_DIM, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-
-        if (R > 5) {
-          // Lens ring
-          ctx.strokeStyle = "rgba(108, 140, 255, 0.30)";
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.arc(lx, ly, R, 0, Math.PI * 2);
-          ctx.stroke();
-
-          // Subtle glow
-          const grad = ctx.createRadialGradient(lx, ly, Math.max(0, R - 2), lx, ly, R + 6);
-          grad.addColorStop(0, "rgba(108, 140, 255, 0.10)");
-          grad.addColorStop(1, "rgba(108, 140, 255, 0)");
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.arc(lx, ly, R + 6, 0, Math.PI * 2);
-          ctx.arc(lx, ly, Math.max(0, R - 2), 0, Math.PI * 2, true);
-          ctx.fill();
-
-          // Radial bar chart
-          drawRadialBars(lx, ly, R, inside);
-
-          // Tooltip
-          updateTooltip(lx, ly, R, inside.length);
-        }
-
-        requestAnimationFrame(drawFrame);
+      if(R>2){
+        cx.save();
+        cx.fillStyle="rgba(4,6,14,0.62)";
+        cx.beginPath(); cx.rect(0,0,W,H); cx.arc(lx,ly,R,0,Math.PI*2,true); cx.fill();
+        cx.restore();
       }
 
-      // ═══════════════════════════════════════
-      // RADIAL BAR CHART
-      // ═══════════════════════════════════════
-      function drawRadialBars(cx, cy, R, points) {
-        if (points.length === 0) return;
-
-        // Build data: for each category, count per year
-        const data = {};
-        let globalMax = 0;
-        for (const k of CAT_KEYS) {
-          data[k] = {};
-          for (const y of YEARS) data[k][y] = 0;
-        }
-        for (const p of points) {
-          data[p.cat][p.year]++;
-        }
-        for (const k of CAT_KEYS) {
-          for (const y of YEARS) {
-            if (data[k][y] > globalMax) globalMax = data[k][y];
-          }
-        }
-        if (globalMax === 0) return;
-
-        // Determine which categories have data
-        const activeCats = CAT_KEYS.filter(k => YEARS.some(y => data[k][y] > 0));
-        if (activeCats.length === 0) return;
-
-        // Each category gets an equal angular slice
-        const totalAngle = Math.PI * 2;
-        const catAngle = totalAngle / activeCats.length;
-        const catPadAngle = 0.08; // padding between category groups
-        const numYears = YEARS.length;
-        const barGroupWidth = numYears * BAR_WIDTH + (numYears - 1) * BAR_GAP;
-
-        const barStart = R + RING_GAP;
-
-        activeCats.forEach((catKey, catIdx) => {
-          const catColor = CATEGORIES[catKey].color;
-          const sliceStartAngle = -Math.PI / 2 + catIdx * catAngle + catPadAngle / 2;
-          const sliceEndAngle = sliceStartAngle + catAngle - catPadAngle;
-          const sliceMidAngle = (sliceStartAngle + sliceEndAngle) / 2;
-
-          // Draw year bars radially within this slice
-          YEARS.forEach((yr, yIdx) => {
-            const count = data[catKey][yr];
-            if (count === 0) return;
-
-            const barLen = (count / globalMax) * BAR_MAX_LENGTH;
-            const yrColor = YEAR_COLORS[yr];
-
-            // Position: distribute year bars within the angular slice
-            const barAngleOffset = ((yIdx - (numYears - 1) / 2) / numYears) * (catAngle - catPadAngle) * 0.6;
-            const barAngle = sliceMidAngle + barAngleOffset;
-
-            // Bar as a thick line from barStart to barStart + barLen
-            const x1 = cx + Math.cos(barAngle) * barStart;
-            const y1 = cy + Math.sin(barAngle) * barStart;
-            const x2 = cx + Math.cos(barAngle) * (barStart + barLen);
-            const y2 = cy + Math.sin(barAngle) * (barStart + barLen);
-
-            // Draw bar with category-tinted year color
-            const r = Math.round(catColor[0] * 0.4 + yrColor[0] * 0.6);
-            const g = Math.round(catColor[1] * 0.4 + yrColor[1] * 0.6);
-            const b = Math.round(catColor[2] * 0.4 + yrColor[2] * 0.6);
-            const alpha = 0.5 + (yIdx / numYears) * 0.4;
-
-            ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
-            ctx.lineWidth = BAR_WIDTH;
-            ctx.lineCap = "round";
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            ctx.stroke();
-
-            // Count label at end of bar (only for larger bars)
-            if (barLen > 20) {
-              const labelR = barStart + barLen + 10;
-              const tx = cx + Math.cos(barAngle) * labelR;
-              const ty = cy + Math.sin(barAngle) * labelR;
-
-              ctx.font = "600 9px Inter, system-ui, sans-serif";
-              ctx.fillStyle = `rgba(${r},${g},${b},0.8)`;
-              ctx.textAlign = "center";
-              ctx.textBaseline = "middle";
-              ctx.fillText(String(count), tx, ty);
-            }
-          });
-
-          // Category label
-          const labelR = barStart + BAR_MAX_LENGTH + 24;
-          const lbx = cx + Math.cos(sliceMidAngle) * labelR;
-          const lby = cy + Math.sin(sliceMidAngle) * labelR;
-
-          ctx.font = "700 10px Inter, system-ui, sans-serif";
-          ctx.fillStyle = `rgba(${catColor[0]},${catColor[1]},${catColor[2]},0.85)`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.fillText(CATEGORIES[catKey].label, lbx, lby);
-
-          // Category total
-          const catTotal = YEARS.reduce((s, y) => s + data[catKey][y], 0);
-          const totalLbR = labelR + 14;
-          const tlx = cx + Math.cos(sliceMidAngle) * totalLbR;
-          const tly = cy + Math.sin(sliceMidAngle) * totalLbR;
-          ctx.font = "500 9px Inter, system-ui, sans-serif";
-          ctx.fillStyle = "rgba(255,255,255,0.35)";
-          ctx.fillText(String(catTotal), tlx, tly);
-
-          // Thin separator line between category groups
-          if (catIdx < activeCats.length - 1) {
-            const sepAngle = sliceEndAngle + catPadAngle / 2;
-            const sx1 = cx + Math.cos(sepAngle) * (barStart - 4);
-            const sy1 = cy + Math.sin(sepAngle) * (barStart - 4);
-            const sx2 = cx + Math.cos(sepAngle) * (barStart + BAR_MAX_LENGTH + 5);
-            const sy2 = cy + Math.sin(sepAngle) * (barStart + BAR_MAX_LENGTH + 5);
-            ctx.strokeStyle = "rgba(255,255,255,0.06)";
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(sx1, sy1);
-            ctx.lineTo(sx2, sy2);
-            ctx.stroke();
-          }
-        });
-
-        // Year legend (inside lens, bottom area)
-        drawYearLegend(cx, cy, R);
-      }
-
-      function drawYearLegend(cx, cy, R) {
-        if (activeYear !== "all") return;
-
-        const legendY = cy + R * 0.45;
-        const totalW = YEARS.length * 40;
-        let x = cx - totalW / 2;
-
-        YEARS.forEach((yr, i) => {
-          const yc = YEAR_COLORS[yr];
-          // Small rect
-          ctx.fillStyle = `rgba(${yc[0]},${yc[1]},${yc[2]},0.7)`;
-          ctx.beginPath();
-          ctx.roundRect(x, legendY, 12, 4, 2);
-          ctx.fill();
-
-          // Label
-          ctx.font = "500 9px Inter, system-ui, sans-serif";
-          ctx.fillStyle = "rgba(255,255,255,0.4)";
-          ctx.textAlign = "left";
-          ctx.textBaseline = "middle";
-          ctx.fillText(String(yr), x + 15, legendY + 2);
-
-          x += 40;
-        });
-      }
-
-      // ═══════════════════════════════════════
-      // TOOLTIP
-      // ═══════════════════════════════════════
-      function updateTooltip(cx, cy, R, count) {
-        const tt = document.getElementById("lensTooltip");
-        const el = document.getElementById("lensCount");
-        const milesEl = document.getElementById("lensMiles");
-
-        if (R > 10) {
-          tt.classList.add("visible");
-          tt.style.left = (cx - 50) + "px";
-          tt.style.top = (cy - R * 0.35) + "px";
-          tt.style.width = "100px";
-          el.textContent = count.toLocaleString();
-          milesEl.textContent = radiusMiles + " mi radius";
+      const ins=[];
+      for(const p of sp){
+        const dx=p.x-lx,dy=p.y-ly,d=Math.sqrt(dx*dx+dy*dy),inL=d<R;
+        const co=CATS[p.ca].c;
+        if(inL){
+          ins.push(p);
+          cx.fillStyle=`rgba(${co[0]},${co[1]},${co[2]},0.92)`;
+          cx.beginPath(); cx.arc(p.x,p.y,PR_BRI,0,Math.PI*2); cx.fill();
         } else {
-          tt.classList.remove("visible");
+          cx.fillStyle=`rgba(${co[0]},${co[1]},${co[2]},0.13)`;
+          cx.beginPath(); cx.arc(p.x,p.y,PR_DIM,0,Math.PI*2); cx.fill();
         }
       }
 
-      // ═══════════════════════════════════════
-      // INTERACTION
-      // ═══════════════════════════════════════
-      const interLayer = document.getElementById("interactionLayer");
+      if(R>5){
+        cx.strokeStyle="rgba(108,140,255,0.28)"; cx.lineWidth=1.5;
+        cx.beginPath(); cx.arc(lx,ly,R,0,Math.PI*2); cx.stroke();
 
-      interLayer.addEventListener("mousemove", (e) => {
-        mouseX = e.clientX;
-        mouseY = e.clientY;
-        mouseOnMap = true;
-        document.getElementById("instruction").classList.add("hidden");
+        const g=cx.createRadialGradient(lx,ly,Math.max(0,R-2),lx,ly,R+8);
+        g.addColorStop(0,"rgba(108,140,255,0.08)"); g.addColorStop(1,"rgba(108,140,255,0)");
+        cx.fillStyle=g;
+        cx.beginPath(); cx.arc(lx,ly,R+8,0,Math.PI*2); cx.arc(lx,ly,Math.max(0,R-2),0,Math.PI*2,true); cx.fill();
+
+        radBars(lx,ly,R,ins);
+        tooltip(lx,ly,R,ins.length);
+      }
+
+      requestAnimationFrame(draw);
+    }
+
+    // ═══════════════════════════════════════
+    // RADIAL BARS
+    // ═══════════════════════════════════════
+    function radBars(px,py,R,pts){
+      if(!pts.length)return;
+      const d={};let gm=0;
+      CK.forEach(k=>{d[k]={};YRS.forEach(y=>d[k][y]=0)});
+      pts.forEach(p=>d[p.ca][p.yr]++);
+      CK.forEach(k=>YRS.forEach(y=>{if(d[k][y]>gm)gm=d[k][y]}));
+      if(!gm)return;
+
+      const ac=CK.filter(k=>YRS.some(y=>d[k][y]>0));
+      if(!ac.length)return;
+
+      const ca=Math.PI*2/ac.length, cp=0.08, nY=YRS.length, bs=R+RING_GAP;
+
+      ac.forEach((ck,ci)=>{
+        const cc=CATS[ck].c;
+        const ss=-Math.PI/2+ci*ca+cp/2, se=ss+ca-cp, sm=(ss+se)/2;
+
+        YRS.forEach((yr,yi)=>{
+          const cnt=d[ck][yr]; if(!cnt)return;
+          const bl=(cnt/gm)*BAR_MAX, yc=YR_C[yr];
+          const ao=((yi-(nY-1)/2)/nY)*(ca-cp)*0.6, ba=sm+ao;
+
+          const x1=px+Math.cos(ba)*bs, y1=py+Math.sin(ba)*bs;
+          const x2=px+Math.cos(ba)*(bs+bl), y2=py+Math.sin(ba)*(bs+bl);
+
+          const r=Math.round(cc[0]*.4+yc[0]*.6);
+          const g=Math.round(cc[1]*.4+yc[1]*.6);
+          const b=Math.round(cc[2]*.4+yc[2]*.6);
+          const a=0.5+(yi/nY)*0.4;
+
+          cx.strokeStyle=`rgba(${r},${g},${b},${a})`; cx.lineWidth=BAR_W; cx.lineCap="round";
+          cx.beginPath(); cx.moveTo(x1,y1); cx.lineTo(x2,y2); cx.stroke();
+
+          if(bl>20){
+            const lr=bs+bl+10;
+            cx.font="600 9px Inter,system-ui"; cx.fillStyle=`rgba(${r},${g},${b},0.8)`;
+            cx.textAlign="center"; cx.textBaseline="middle";
+            cx.fillText(cnt,px+Math.cos(ba)*lr,py+Math.sin(ba)*lr);
+          }
+        });
+
+        const lr=bs+BAR_MAX+24;
+        cx.font="700 10px Inter,system-ui"; cx.fillStyle=`rgba(${cc[0]},${cc[1]},${cc[2]},0.85)`;
+        cx.textAlign="center"; cx.textBaseline="middle";
+        cx.fillText(CATS[ck].l,px+Math.cos(sm)*lr,py+Math.sin(sm)*lr);
+
+        const ct=YRS.reduce((s,y)=>s+d[ck][y],0);
+        cx.font="500 9px Inter,system-ui"; cx.fillStyle="rgba(255,255,255,0.30)";
+        cx.fillText(ct,px+Math.cos(sm)*(lr+14),py+Math.sin(sm)*(lr+14));
+
+        if(ci<ac.length-1){
+          const sa=se+cp/2;
+          cx.strokeStyle="rgba(255,255,255,0.05)"; cx.lineWidth=1;
+          cx.beginPath();
+          cx.moveTo(px+Math.cos(sa)*(bs-4),py+Math.sin(sa)*(bs-4));
+          cx.lineTo(px+Math.cos(sa)*(bs+BAR_MAX+5),py+Math.sin(sa)*(bs+BAR_MAX+5));
+          cx.stroke();
+        }
       });
 
-      interLayer.addEventListener("mouseleave", () => { mouseOnMap = false; });
+      if(aYr==="all"){
+        const ly2=py+R*0.45, tw=YRS.length*40; let x=px-tw/2;
+        YRS.forEach(yr=>{
+          const yc=YR_C[yr];
+          cx.fillStyle=`rgba(${yc[0]},${yc[1]},${yc[2]},0.7)`;
+          cx.beginPath(); cx.roundRect(x,ly2,12,4,2); cx.fill();
+          cx.font="500 9px Inter,system-ui"; cx.fillStyle="rgba(255,255,255,0.35)";
+          cx.textAlign="left"; cx.textBaseline="middle"; cx.fillText(yr,x+15,ly2+2);
+          x+=40;
+        });
+      }
+    }
 
-      // Scroll → map zoom
-      interLayer.addEventListener("wheel", (e) => {
-        document.getElementById("viewDiv").dispatchEvent(
-          new WheelEvent("wheel", {
-            clientX: e.clientX, clientY: e.clientY,
-            deltaX: e.deltaX, deltaY: e.deltaY, deltaMode: e.deltaMode,
-            bubbles: true, cancelable: true
-          })
-        );
-      });
+    function tooltip(px,py,R,n){
+      const t=document.getElementById("ltt"),e=document.getElementById("lNum"),m=document.getElementById("lMi");
+      if(R>10){
+        t.classList.add("vis"); t.style.left=(px-50)+"px"; t.style.top=(py-R*0.35)+"px"; t.style.width="100px";
+        e.textContent=n.toLocaleString(); m.textContent=rMi+" mi radius";
+      } else t.classList.remove("vis");
+    }
 
-      // Drag → map pan
-      let isDragging = false;
-      interLayer.addEventListener("mousedown", (e) => {
-        isDragging = true;
-        interLayer.style.pointerEvents = "none";
-      });
-      document.addEventListener("mouseup", () => {
-        if (isDragging) { isDragging = false; interLayer.style.pointerEvents = "auto"; }
-      });
-      document.addEventListener("mousemove", (e) => {
-        if (isDragging) { mouseX = e.clientX; mouseY = e.clientY; }
-      });
+    // ═══════════════════════════════════════
+    // INTERACTION
+    // ═══════════════════════════════════════
+    const il=document.getElementById("interactionLayer");
 
-      // Category buttons
-      document.querySelectorAll(".category-bar .pill-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          document.querySelectorAll(".category-bar .pill-btn").forEach(b => b.classList.remove("active"));
-          btn.classList.add("active");
-          activeCat = btn.dataset.cat;
-          projectPoints();
+    il.addEventListener("mousemove",e=>{mx=e.clientX;my=e.clientY;mOn=true;document.getElementById("instr").classList.add("off")});
+    il.addEventListener("mouseleave",()=>{mOn=false});
+
+    il.addEventListener("wheel",e=>{
+      document.getElementById("viewDiv").dispatchEvent(new WheelEvent("wheel",{
+        clientX:e.clientX,clientY:e.clientY,deltaX:e.deltaX,deltaY:e.deltaY,deltaMode:e.deltaMode,bubbles:true,cancelable:true
+      }));
+    });
+
+    let drag=false;
+    il.addEventListener("mousedown",()=>{drag=true;il.style.pointerEvents="none"});
+    document.addEventListener("mouseup",()=>{if(drag){drag=false;il.style.pointerEvents="auto"}});
+    document.addEventListener("mousemove",e=>{if(drag){mx=e.clientX;my=e.clientY}});
+
+    // ═══════════════════════════════════════
+    // BUTTON GROUPS
+    // ═══════════════════════════════════════
+    function grp(id,cb){
+      const c=document.getElementById(id);
+      c.querySelectorAll(".g-btn").forEach(b=>{
+        b.addEventListener("click",()=>{
+          c.querySelectorAll(".g-btn").forEach(x=>x.classList.remove("on"));
+          b.classList.add("on"); cb(b.dataset.v);
         });
       });
+    }
 
-      // Year buttons
-      document.querySelectorAll(".year-bar .pill-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          document.querySelectorAll(".year-bar .pill-btn").forEach(b => b.classList.remove("active"));
-          btn.classList.add("active");
-          activeYear = btn.dataset.year;
-          projectPoints();
-        });
-      });
+    grp("catBar",v=>{aCat=v;proj()});
+    grp("yearBar",v=>{aYr=v;proj()});
+    grp("radBar",v=>{rMi=parseInt(v)});
 
-      // Radius buttons
-      document.querySelectorAll(".radius-bar .pill-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-          document.querySelectorAll(".radius-bar .pill-btn").forEach(b => b.classList.remove("active"));
-          btn.classList.add("active");
-          radiusMiles = parseInt(btn.dataset.miles);
-        });
-      });
-
-      // ═══════════════════════════════════════
-      // INIT
-      // ═══════════════════════════════════════
-      view.when(() => {
-        projectPoints();
-        view.watch("extent", () => projectPoints());
-        view.watch("zoom", () => projectPoints());
-        requestAnimationFrame(drawFrame);
-        setTimeout(() => document.getElementById("loadingOverlay").classList.add("hidden"), 600);
-      }, (err) => {
-        console.error("View failed:", err);
-        projectPoints();
-        requestAnimationFrame(drawFrame);
-        document.getElementById("loadingOverlay").classList.add("hidden");
-      });
-
+    // ═══════════════════════════════════════
+    // INIT
+    // ═══════════════════════════════════════
+    view.when(()=>{
+      view.ui.components=[];
+      proj();
+      view.watch("extent",()=>proj());
+      view.watch("zoom",()=>proj());
+      requestAnimationFrame(draw);
+      setTimeout(()=>document.getElementById("loader").classList.add("off"),600);
+    },err=>{
+      console.error("View init error:",err);
+      proj(); requestAnimationFrame(draw);
+      document.getElementById("loader").classList.add("off");
     });
   </script>
 </body>
