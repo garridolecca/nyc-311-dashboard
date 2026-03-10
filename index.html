@@ -31,7 +31,6 @@
       z-index: 1;
     }
 
-    /* Canvas overlay for lens + points */
     #lensCanvas {
       position: absolute;
       inset: 0;
@@ -39,7 +38,6 @@
       pointer-events: none;
     }
 
-    /* Interaction layer captures mouse but is transparent */
     #interactionLayer {
       position: absolute;
       inset: 0;
@@ -47,7 +45,7 @@
       cursor: none;
     }
 
-    /* Title overlay */
+    /* Title */
     .title-bar {
       position: absolute;
       top: 0; left: 0; right: 0;
@@ -55,80 +53,23 @@
       padding: 20px 32px;
       background: linear-gradient(180deg, rgba(10,14,26,0.85) 0%, rgba(10,14,26,0) 100%);
       pointer-events: none;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
     }
 
-    .title-left h1 {
+    .title-bar h1 {
       font-size: 26px;
       font-weight: 700;
       color: #fff;
       letter-spacing: -0.5px;
-      line-height: 1.2;
     }
 
-    .title-left .subtitle {
+    .title-bar .subtitle {
       font-size: 13px;
       color: #7b8ca8;
       margin-top: 4px;
-      font-weight: 400;
     }
 
-    /* Category selector */
-    .category-bar {
-      position: absolute;
-      bottom: 32px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 20;
-      display: flex;
-      gap: 6px;
-      padding: 6px;
-      background: rgba(15, 20, 40, 0.85);
-      backdrop-filter: blur(12px);
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.08);
-    }
-
-    .cat-btn {
-      padding: 8px 18px;
-      border: none;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      background: transparent;
-      color: #7b8ca8;
-      transition: all 0.25s;
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      letter-spacing: 0.3px;
-    }
-
-    .cat-btn:hover {
-      color: #c0c8d8;
-      background: rgba(255,255,255,0.05);
-    }
-
-    .cat-btn.active {
-      color: #fff;
-      background: rgba(255,255,255,0.12);
-    }
-
-    .cat-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    /* Year selector */
-    .year-bar {
-      position: absolute;
-      top: 20px;
-      right: 32px;
+    /* Shared pill style */
+    .pill-bar {
       z-index: 20;
       display: flex;
       gap: 4px;
@@ -139,8 +80,8 @@
       border: 1px solid rgba(255,255,255,0.08);
     }
 
-    .year-btn {
-      padding: 6px 14px;
+    .pill-btn {
+      padding: 7px 14px;
       border: none;
       border-radius: 7px;
       font-size: 12px;
@@ -149,37 +90,92 @@
       background: transparent;
       color: #7b8ca8;
       transition: all 0.25s;
+      display: flex;
+      align-items: center;
+      gap: 7px;
     }
 
-    .year-btn:hover { color: #c0c8d8; }
-    .year-btn.active { color: #fff; background: rgba(255,255,255,0.12); }
+    .pill-btn:hover { color: #c0c8d8; background: rgba(255,255,255,0.05); }
+    .pill-btn.active { color: #fff; background: rgba(255,255,255,0.12); }
 
-    /* Stats inside lens - shown as tooltip near lens */
+    .cat-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Category bar — bottom center */
+    .category-bar {
+      position: absolute;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    /* Year bar — top right */
+    .year-bar {
+      position: absolute;
+      top: 20px;
+      right: 32px;
+    }
+
+    /* Radius bar — left center */
+    .radius-bar {
+      position: absolute;
+      left: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      flex-direction: column;
+    }
+
+    .radius-bar .pill-btn {
+      padding: 6px 12px;
+      font-size: 11px;
+      justify-content: center;
+    }
+
+    .radius-label {
+      font-size: 9px;
+      color: #4a5568;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      text-align: center;
+      padding: 4px 0 2px;
+      pointer-events: none;
+    }
+
+    /* Lens tooltip */
     .lens-tooltip {
       position: absolute;
       z-index: 25;
       pointer-events: none;
       opacity: 0;
       transition: opacity 0.2s;
-      font-size: 13px;
       text-align: center;
     }
 
     .lens-tooltip.visible { opacity: 1; }
 
     .lens-count {
-      font-size: 36px;
+      font-size: 38px;
       font-weight: 700;
       color: #fff;
       line-height: 1;
     }
 
-    .lens-label {
+    .lens-sublabel {
       font-size: 11px;
       color: #7b8ca8;
       text-transform: uppercase;
       letter-spacing: 1.5px;
       margin-top: 2px;
+    }
+
+    .lens-miles {
+      font-size: 10px;
+      color: #4a5568;
+      margin-top: 1px;
     }
 
     /* Instruction */
@@ -230,7 +226,6 @@
       letter-spacing: 1px;
     }
 
-    /* Hide ArcGIS UI elements */
     .esri-ui { display: none !important; }
   </style>
 </head>
@@ -247,66 +242,84 @@
 
   <!-- Title -->
   <div class="title-bar">
-    <div class="title-left">
-      <h1>Calling 311 in New York City</h1>
-      <div class="subtitle">7 million service requests, 2022 &ndash; 2025</div>
-    </div>
+    <h1>Calling 311 in New York City</h1>
+    <div class="subtitle">7 million service requests, 2022 &ndash; 2025</div>
   </div>
 
   <!-- Year selector -->
-  <div class="year-bar">
-    <button class="year-btn active" data-year="all">All</button>
-    <button class="year-btn" data-year="2022">2022</button>
-    <button class="year-btn" data-year="2023">2023</button>
-    <button class="year-btn" data-year="2024">2024</button>
-    <button class="year-btn" data-year="2025">2025</button>
+  <div class="pill-bar year-bar">
+    <button class="pill-btn active" data-year="all">All</button>
+    <button class="pill-btn" data-year="2022">2022</button>
+    <button class="pill-btn" data-year="2023">2023</button>
+    <button class="pill-btn" data-year="2024">2024</button>
+    <button class="pill-btn" data-year="2025">2025</button>
+  </div>
+
+  <!-- Radius selector -->
+  <div class="pill-bar radius-bar">
+    <div class="radius-label">Radius</div>
+    <button class="pill-btn" data-miles="1">1 mi</button>
+    <button class="pill-btn active" data-miles="2">2 mi</button>
+    <button class="pill-btn" data-miles="3">3 mi</button>
+    <button class="pill-btn" data-miles="4">4 mi</button>
+    <button class="pill-btn" data-miles="5">5 mi</button>
   </div>
 
   <!-- Category bar -->
-  <div class="category-bar">
-    <button class="cat-btn active" data-cat="all">
+  <div class="pill-bar category-bar">
+    <button class="pill-btn active" data-cat="all">
       <div class="cat-dot" style="background:#fff"></div>All
     </button>
-    <button class="cat-btn" data-cat="noise">
+    <button class="pill-btn" data-cat="noise">
       <div class="cat-dot" style="background:#f97316"></div>Noise
     </button>
-    <button class="cat-btn" data-cat="parking">
+    <button class="pill-btn" data-cat="parking">
       <div class="cat-dot" style="background:#3b82f6"></div>Parking
     </button>
-    <button class="cat-btn" data-cat="heating">
+    <button class="pill-btn" data-cat="heating">
       <div class="cat-dot" style="background:#ef4444"></div>Heating
     </button>
-    <button class="cat-btn" data-cat="rodent">
+    <button class="pill-btn" data-cat="rodent">
       <div class="cat-dot" style="background:#a855f7"></div>Rodents
     </button>
-    <button class="cat-btn" data-cat="dumping">
+    <button class="pill-btn" data-cat="dumping">
       <div class="cat-dot" style="background:#22c55e"></div>Illegal Dumping
     </button>
   </div>
 
   <div class="instruction" id="instruction">Move your cursor to explore the map</div>
 
-  <!-- Lens center stats -->
   <div class="lens-tooltip" id="lensTooltip">
     <div class="lens-count" id="lensCount">0</div>
-    <div class="lens-label">complaints</div>
+    <div class="lens-sublabel">complaints</div>
+    <div class="lens-miles" id="lensMiles">2 mi radius</div>
   </div>
 
   <script>
     require([
       "esri/Map",
       "esri/views/MapView",
-      "esri/geometry/Point",
-      "esri/geometry/SpatialReference"
-    ], function(Map, MapView, Point, SpatialReference) {
+      "esri/geometry/Point"
+    ], function(Map, MapView, Point) {
 
       // ═══════════════════════════════════════
       // CONFIG
       // ═══════════════════════════════════════
-      const LENS_RADIUS = 140;
-      const POINT_RADIUS_DIM = 1.2;
-      const POINT_RADIUS_BRIGHT = 2.4;
-      const TOTAL_POINTS = 5000;
+      const MILES_TO_METERS = 1609.344;
+      const TOTAL_POINTS = 6000;
+      const POINT_R_DIM = 1.2;
+      const POINT_R_BRIGHT = 2.8;
+      const BAR_MAX_LENGTH = 70;   // max radial bar length in px
+      const BAR_WIDTH = 7;         // width of each year sub-bar
+      const BAR_GAP = 2;           // gap between year sub-bars
+      const RING_GAP = 14;         // gap between lens circle and bars
+      const YEARS = [2022, 2023, 2024, 2025];
+      const YEAR_COLORS = {
+        2022: [100, 140, 210],
+        2023: [130, 170, 240],
+        2024: [170, 200, 255],
+        2025: [220, 235, 255]
+      };
 
       const CATEGORIES = {
         noise:   { color: [249, 115, 22],  label: "Noise" },
@@ -334,8 +347,7 @@
         { name: "Staten Island", w: 0.08, lngR: [-74.26, -74.05], latR: [40.50, 40.65] }
       ];
 
-      // Category weights vary by borough for realism
-      const BOROUGH_CAT_WEIGHTS = {
+      const BOROUGH_CAT_W = {
         "Manhattan":     { noise: 0.35, parking: 0.15, heating: 0.25, rodent: 0.10, dumping: 0.15 },
         "Brooklyn":      { noise: 0.25, parking: 0.20, heating: 0.25, rodent: 0.15, dumping: 0.15 },
         "Queens":        { noise: 0.20, parking: 0.25, heating: 0.20, rodent: 0.15, dumping: 0.20 },
@@ -343,9 +355,8 @@
         "Staten Island": { noise: 0.15, parking: 0.20, heating: 0.15, rodent: 0.10, dumping: 0.40 }
       };
 
-      function pickWeighted(items, weights, rng) {
-        const r = rng();
-        let c = 0;
+      function pickW(items, weights, rng) {
+        const r = rng(); let c = 0;
         for (let i = 0; i < items.length; i++) { c += weights[i]; if (r < c) return items[i]; }
         return items[items.length - 1];
       }
@@ -353,21 +364,19 @@
       function generatePoints(n) {
         const rng = seededRNG(311);
         const pts = [];
-        const boroughNames = BOROUGHS.map(b => b.name);
-        const boroughWeights = BOROUGHS.map(b => b.w);
-        const years = [2022, 2023, 2024, 2025];
-        const yearWeights = [0.22, 0.26, 0.28, 0.24];
+        const bNames = BOROUGHS.map(b => b.name);
+        const bWeights = BOROUGHS.map(b => b.w);
+        const yWeights = [0.22, 0.26, 0.28, 0.24];
 
         for (let i = 0; i < n; i++) {
-          const borough = pickWeighted(boroughNames, boroughWeights, rng);
+          const borough = pickW(bNames, bWeights, rng);
           const b = BOROUGHS.find(x => x.name === borough);
           const lng = b.lngR[0] + rng() * (b.lngR[1] - b.lngR[0]);
           const lat = b.latR[0] + rng() * (b.latR[1] - b.latR[0]);
-          const catWeights = BOROUGH_CAT_WEIGHTS[borough];
-          const cat = pickWeighted(CAT_KEYS, CAT_KEYS.map(k => catWeights[k]), rng);
-          const year = pickWeighted(years, yearWeights, rng);
-
-          pts.push({ lng, lat, cat, year, borough });
+          const cw = BOROUGH_CAT_W[borough];
+          const cat = pickW(CAT_KEYS, CAT_KEYS.map(k => cw[k]), rng);
+          const year = pickW(YEARS, yWeights, rng);
+          pts.push({ lng, lat, cat, year });
         }
         return pts;
       }
@@ -375,15 +384,16 @@
       const allPoints = generatePoints(TOTAL_POINTS);
 
       // ═══════════════════════════════════════
-      // FILTER STATE
+      // STATE
       // ═══════════════════════════════════════
       let activeCat = "all";
       let activeYear = "all";
+      let radiusMiles = 2;
       let mouseX = -999, mouseY = -999;
       let mouseOnMap = false;
-      let animLensRadius = 0;
+      let animLensR = 0;
 
-      function getFilteredPoints() {
+      function getFiltered() {
         return allPoints.filter(p => {
           if (activeCat !== "all" && p.cat !== activeCat) return false;
           if (activeYear !== "all" && p.year !== parseInt(activeYear)) return false;
@@ -391,11 +401,16 @@
         });
       }
 
+      // Convert miles to screen pixels using map resolution
+      function milesToPixels(miles) {
+        if (!view.resolution) return 140;
+        return (miles * MILES_TO_METERS) / view.resolution;
+      }
+
       // ═══════════════════════════════════════
       // MAP
       // ═══════════════════════════════════════
       const map = new Map({ basemap: "dark-gray-vector" });
-
       const view = new MapView({
         container: "viewDiv",
         map,
@@ -406,54 +421,53 @@
       });
 
       // ═══════════════════════════════════════
-      // CANVAS SETUP
+      // CANVAS
       // ═══════════════════════════════════════
       const canvas = document.getElementById("lensCanvas");
       const ctx = canvas.getContext("2d");
 
       function resizeCanvas() {
-        canvas.width = window.innerWidth * window.devicePixelRatio;
-        canvas.height = window.innerHeight * window.devicePixelRatio;
+        const dpr = window.devicePixelRatio;
+        canvas.width = window.innerWidth * dpr;
+        canvas.height = window.innerHeight * dpr;
         canvas.style.width = window.innerWidth + "px";
         canvas.style.height = window.innerHeight + "px";
-        ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
-
       window.addEventListener("resize", resizeCanvas);
       resizeCanvas();
 
       // ═══════════════════════════════════════
-      // SCREEN PROJECTION CACHE
+      // PROJECTION
       // ═══════════════════════════════════════
-      let screenPoints = []; // { sx, sy, cat, year, borough } in screen coords
+      let screenPts = [];
 
       function projectPoints() {
-        const pts = getFilteredPoints();
-        screenPoints = pts.map(p => {
+        const pts = getFiltered();
+        screenPts = [];
+        for (const p of pts) {
           const sp = view.toScreen(new Point({ longitude: p.lng, latitude: p.lat }));
-          return sp ? { sx: sp.x, sy: sp.y, cat: p.cat, year: p.year, borough: p.borough } : null;
-        }).filter(Boolean);
+          if (sp) screenPts.push({ sx: sp.x, sy: sp.y, cat: p.cat, year: p.year });
+        }
       }
 
       // ═══════════════════════════════════════
-      // DRAW
+      // DRAW FRAME
       // ═══════════════════════════════════════
       function drawFrame() {
         const W = window.innerWidth;
         const H = window.innerHeight;
         ctx.clearRect(0, 0, W, H);
 
-        // Animate lens radius
-        const targetR = mouseOnMap ? LENS_RADIUS : 0;
-        animLensRadius += (targetR - animLensRadius) * 0.12;
-
+        const targetR = mouseOnMap ? milesToPixels(radiusMiles) : 0;
+        animLensR += (targetR - animLensR) * 0.1;
+        const R = animLensR;
         const lx = mouseX, ly = mouseY;
-        const R = animLensRadius;
 
-        // Dim overlay outside lens
+        // Dim overlay
         if (R > 2) {
           ctx.save();
-          ctx.fillStyle = "rgba(6, 8, 16, 0.55)";
+          ctx.fillStyle = "rgba(6, 8, 16, 0.6)";
           ctx.beginPath();
           ctx.rect(0, 0, W, H);
           ctx.arc(lx, ly, R, 0, Math.PI * 2, true);
@@ -461,159 +475,225 @@
           ctx.restore();
         }
 
-        // Collect points inside lens for radial chart
-        const insidePoints = [];
-
-        // Draw all points
-        for (const p of screenPoints) {
-          const dx = p.sx - lx;
-          const dy = p.sy - ly;
+        // Collect inside points & draw all points
+        const inside = [];
+        for (const p of screenPts) {
+          const dx = p.sx - lx, dy = p.sy - ly;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          const inside = dist < R;
+          const isIn = dist < R;
           const col = CATEGORIES[p.cat].color;
 
-          if (inside) {
-            insidePoints.push(p);
-            ctx.fillStyle = `rgba(${col[0]}, ${col[1]}, ${col[2]}, 0.9)`;
+          if (isIn) {
+            inside.push(p);
+            ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},0.92)`;
             ctx.beginPath();
-            ctx.arc(p.sx, p.sy, POINT_RADIUS_BRIGHT, 0, Math.PI * 2);
+            ctx.arc(p.sx, p.sy, POINT_R_BRIGHT, 0, Math.PI * 2);
             ctx.fill();
           } else {
-            ctx.fillStyle = `rgba(${col[0]}, ${col[1]}, ${col[2]}, 0.18)`;
+            ctx.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},0.15)`;
             ctx.beginPath();
-            ctx.arc(p.sx, p.sy, POINT_RADIUS_DIM, 0, Math.PI * 2);
+            ctx.arc(p.sx, p.sy, POINT_R_DIM, 0, Math.PI * 2);
             ctx.fill();
           }
         }
 
-        // Draw lens ring
-        if (R > 2) {
-          // Outer glow
-          const grad = ctx.createRadialGradient(lx, ly, Math.max(0, R - 3), lx, ly, R + 8);
-          grad.addColorStop(0, "rgba(108, 140, 255, 0.15)");
-          grad.addColorStop(1, "rgba(108, 140, 255, 0)");
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.arc(lx, ly, R + 8, 0, Math.PI * 2);
-          ctx.arc(lx, ly, R - 3, 0, Math.PI * 2, true);
-          ctx.fill();
-
-          // Ring
-          ctx.strokeStyle = "rgba(108, 140, 255, 0.35)";
+        if (R > 5) {
+          // Lens ring
+          ctx.strokeStyle = "rgba(108, 140, 255, 0.30)";
           ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.arc(lx, ly, R, 0, Math.PI * 2);
           ctx.stroke();
 
-          // Draw radial chart around lens
-          drawRadialChart(lx, ly, R, insidePoints);
+          // Subtle glow
+          const grad = ctx.createRadialGradient(lx, ly, Math.max(0, R - 2), lx, ly, R + 6);
+          grad.addColorStop(0, "rgba(108, 140, 255, 0.10)");
+          grad.addColorStop(1, "rgba(108, 140, 255, 0)");
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.arc(lx, ly, R + 6, 0, Math.PI * 2);
+          ctx.arc(lx, ly, Math.max(0, R - 2), 0, Math.PI * 2, true);
+          ctx.fill();
 
-          // Update tooltip
-          updateTooltip(lx, ly, R, insidePoints.length);
+          // Radial bar chart
+          drawRadialBars(lx, ly, R, inside);
+
+          // Tooltip
+          updateTooltip(lx, ly, R, inside.length);
         }
 
         requestAnimationFrame(drawFrame);
       }
 
-      function drawRadialChart(cx, cy, radius, points) {
+      // ═══════════════════════════════════════
+      // RADIAL BAR CHART
+      // ═══════════════════════════════════════
+      function drawRadialBars(cx, cy, R, points) {
         if (points.length === 0) return;
 
-        // Count by category
-        const counts = {};
-        CAT_KEYS.forEach(k => counts[k] = 0);
-        points.forEach(p => counts[p.cat]++);
-
-        const total = points.length;
-        const chartR = radius + 18;
-        const arcWidth = 8;
-        let startAngle = -Math.PI / 2;
-
-        // Draw arcs
-        for (const key of CAT_KEYS) {
-          if (counts[key] === 0) continue;
-          const sweep = (counts[key] / total) * Math.PI * 2;
-          const col = CATEGORIES[key].color;
-
-          ctx.strokeStyle = `rgba(${col[0]}, ${col[1]}, ${col[2]}, 0.85)`;
-          ctx.lineWidth = arcWidth;
-          ctx.lineCap = "round";
-          ctx.beginPath();
-          ctx.arc(cx, cy, chartR, startAngle + 0.02, startAngle + sweep - 0.02);
-          ctx.stroke();
-
-          // Label on large segments
-          if (sweep > 0.4) {
-            const midAngle = startAngle + sweep / 2;
-            const labelR = chartR + 20;
-            const lx2 = cx + Math.cos(midAngle) * labelR;
-            const ly2 = cy + Math.sin(midAngle) * labelR;
-            const pct = Math.round((counts[key] / total) * 100);
-
-            ctx.font = "600 10px Inter, system-ui, sans-serif";
-            ctx.fillStyle = `rgba(${col[0]}, ${col[1]}, ${col[2]}, 0.9)`;
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText(`${pct}%`, lx2, ly2);
+        // Build data: for each category, count per year
+        const data = {};
+        let globalMax = 0;
+        for (const k of CAT_KEYS) {
+          data[k] = {};
+          for (const y of YEARS) data[k][y] = 0;
+        }
+        for (const p of points) {
+          data[p.cat][p.year]++;
+        }
+        for (const k of CAT_KEYS) {
+          for (const y of YEARS) {
+            if (data[k][y] > globalMax) globalMax = data[k][y];
           }
-
-          startAngle += sweep;
         }
+        if (globalMax === 0) return;
 
-        // Year breakdown inside lens (small bars)
-        if (activeYear === "all" && points.length > 10) {
-          const yearCounts = {};
-          points.forEach(p => { yearCounts[p.year] = (yearCounts[p.year] || 0) + 1; });
-          const years = [2022, 2023, 2024, 2025];
-          const maxYC = Math.max(...years.map(y => yearCounts[y] || 0), 1);
-          const barAreaW = 80;
-          const barH = 3;
-          const barGap = 8;
-          const startY = cy + radius * 0.25;
-          const startX = cx - barAreaW / 2;
+        // Determine which categories have data
+        const activeCats = CAT_KEYS.filter(k => YEARS.some(y => data[k][y] > 0));
+        if (activeCats.length === 0) return;
 
-          years.forEach((y, i) => {
-            const count = yearCounts[y] || 0;
-            const w = (count / maxYC) * barAreaW;
-            const by = startY + i * barGap;
+        // Each category gets an equal angular slice
+        const totalAngle = Math.PI * 2;
+        const catAngle = totalAngle / activeCats.length;
+        const catPadAngle = 0.08; // padding between category groups
+        const numYears = YEARS.length;
+        const barGroupWidth = numYears * BAR_WIDTH + (numYears - 1) * BAR_GAP;
 
-            // Year label
-            ctx.font = "500 9px Inter, system-ui, sans-serif";
-            ctx.fillStyle = "rgba(255,255,255,0.4)";
-            ctx.textAlign = "right";
-            ctx.textBaseline = "middle";
-            ctx.fillText(String(y), startX - 5, by + barH / 2);
+        const barStart = R + RING_GAP;
 
-            // Bar bg
-            ctx.fillStyle = "rgba(255,255,255,0.06)";
+        activeCats.forEach((catKey, catIdx) => {
+          const catColor = CATEGORIES[catKey].color;
+          const sliceStartAngle = -Math.PI / 2 + catIdx * catAngle + catPadAngle / 2;
+          const sliceEndAngle = sliceStartAngle + catAngle - catPadAngle;
+          const sliceMidAngle = (sliceStartAngle + sliceEndAngle) / 2;
+
+          // Draw year bars radially within this slice
+          YEARS.forEach((yr, yIdx) => {
+            const count = data[catKey][yr];
+            if (count === 0) return;
+
+            const barLen = (count / globalMax) * BAR_MAX_LENGTH;
+            const yrColor = YEAR_COLORS[yr];
+
+            // Position: distribute year bars within the angular slice
+            const barAngleOffset = ((yIdx - (numYears - 1) / 2) / numYears) * (catAngle - catPadAngle) * 0.6;
+            const barAngle = sliceMidAngle + barAngleOffset;
+
+            // Bar as a thick line from barStart to barStart + barLen
+            const x1 = cx + Math.cos(barAngle) * barStart;
+            const y1 = cy + Math.sin(barAngle) * barStart;
+            const x2 = cx + Math.cos(barAngle) * (barStart + barLen);
+            const y2 = cy + Math.sin(barAngle) * (barStart + barLen);
+
+            // Draw bar with category-tinted year color
+            const r = Math.round(catColor[0] * 0.4 + yrColor[0] * 0.6);
+            const g = Math.round(catColor[1] * 0.4 + yrColor[1] * 0.6);
+            const b = Math.round(catColor[2] * 0.4 + yrColor[2] * 0.6);
+            const alpha = 0.5 + (yIdx / numYears) * 0.4;
+
+            ctx.strokeStyle = `rgba(${r},${g},${b},${alpha})`;
+            ctx.lineWidth = BAR_WIDTH;
+            ctx.lineCap = "round";
             ctx.beginPath();
-            ctx.roundRect(startX, by, barAreaW, barH, 1.5);
-            ctx.fill();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
 
-            // Bar fill
-            ctx.fillStyle = "rgba(108, 140, 255, 0.6)";
-            ctx.beginPath();
-            ctx.roundRect(startX, by, w, barH, 1.5);
-            ctx.fill();
+            // Count label at end of bar (only for larger bars)
+            if (barLen > 20) {
+              const labelR = barStart + barLen + 10;
+              const tx = cx + Math.cos(barAngle) * labelR;
+              const ty = cy + Math.sin(barAngle) * labelR;
 
-            // Count
-            ctx.font = "600 9px Inter, system-ui, sans-serif";
-            ctx.fillStyle = "rgba(255,255,255,0.5)";
-            ctx.textAlign = "left";
-            ctx.fillText(String(count), startX + barAreaW + 5, by + barH / 2);
+              ctx.font = "600 9px Inter, system-ui, sans-serif";
+              ctx.fillStyle = `rgba(${r},${g},${b},0.8)`;
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillText(String(count), tx, ty);
+            }
           });
-        }
+
+          // Category label
+          const labelR = barStart + BAR_MAX_LENGTH + 24;
+          const lbx = cx + Math.cos(sliceMidAngle) * labelR;
+          const lby = cy + Math.sin(sliceMidAngle) * labelR;
+
+          ctx.font = "700 10px Inter, system-ui, sans-serif";
+          ctx.fillStyle = `rgba(${catColor[0]},${catColor[1]},${catColor[2]},0.85)`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(CATEGORIES[catKey].label, lbx, lby);
+
+          // Category total
+          const catTotal = YEARS.reduce((s, y) => s + data[catKey][y], 0);
+          const totalLbR = labelR + 14;
+          const tlx = cx + Math.cos(sliceMidAngle) * totalLbR;
+          const tly = cy + Math.sin(sliceMidAngle) * totalLbR;
+          ctx.font = "500 9px Inter, system-ui, sans-serif";
+          ctx.fillStyle = "rgba(255,255,255,0.35)";
+          ctx.fillText(String(catTotal), tlx, tly);
+
+          // Thin separator line between category groups
+          if (catIdx < activeCats.length - 1) {
+            const sepAngle = sliceEndAngle + catPadAngle / 2;
+            const sx1 = cx + Math.cos(sepAngle) * (barStart - 4);
+            const sy1 = cy + Math.sin(sepAngle) * (barStart - 4);
+            const sx2 = cx + Math.cos(sepAngle) * (barStart + BAR_MAX_LENGTH + 5);
+            const sy2 = cy + Math.sin(sepAngle) * (barStart + BAR_MAX_LENGTH + 5);
+            ctx.strokeStyle = "rgba(255,255,255,0.06)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(sx1, sy1);
+            ctx.lineTo(sx2, sy2);
+            ctx.stroke();
+          }
+        });
+
+        // Year legend (inside lens, bottom area)
+        drawYearLegend(cx, cy, R);
       }
 
+      function drawYearLegend(cx, cy, R) {
+        if (activeYear !== "all") return;
+
+        const legendY = cy + R * 0.45;
+        const totalW = YEARS.length * 40;
+        let x = cx - totalW / 2;
+
+        YEARS.forEach((yr, i) => {
+          const yc = YEAR_COLORS[yr];
+          // Small rect
+          ctx.fillStyle = `rgba(${yc[0]},${yc[1]},${yc[2]},0.7)`;
+          ctx.beginPath();
+          ctx.roundRect(x, legendY, 12, 4, 2);
+          ctx.fill();
+
+          // Label
+          ctx.font = "500 9px Inter, system-ui, sans-serif";
+          ctx.fillStyle = "rgba(255,255,255,0.4)";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          ctx.fillText(String(yr), x + 15, legendY + 2);
+
+          x += 40;
+        });
+      }
+
+      // ═══════════════════════════════════════
+      // TOOLTIP
+      // ═══════════════════════════════════════
       function updateTooltip(cx, cy, R, count) {
         const tt = document.getElementById("lensTooltip");
-        const countEl = document.getElementById("lensCount");
+        const el = document.getElementById("lensCount");
+        const milesEl = document.getElementById("lensMiles");
 
-        if (count > 0 && R > 10) {
+        if (R > 10) {
           tt.classList.add("visible");
-          tt.style.left = (cx - 40) + "px";
-          tt.style.top = (cy - R * 0.55) + "px";
-          tt.style.width = "80px";
-          countEl.textContent = count.toLocaleString();
+          tt.style.left = (cx - 50) + "px";
+          tt.style.top = (cy - R * 0.35) + "px";
+          tt.style.width = "100px";
+          el.textContent = count.toLocaleString();
+          milesEl.textContent = radiusMiles + " mi radius";
         } else {
           tt.classList.remove("visible");
         }
@@ -628,54 +708,39 @@
         mouseX = e.clientX;
         mouseY = e.clientY;
         mouseOnMap = true;
-
-        // Hide instruction after first move
         document.getElementById("instruction").classList.add("hidden");
       });
 
-      interLayer.addEventListener("mouseleave", () => {
-        mouseOnMap = false;
-      });
+      interLayer.addEventListener("mouseleave", () => { mouseOnMap = false; });
 
-      // Pass scroll/wheel events through to the map
+      // Scroll → map zoom
       interLayer.addEventListener("wheel", (e) => {
-        const mapEvt = new WheelEvent("wheel", {
-          clientX: e.clientX, clientY: e.clientY,
-          deltaX: e.deltaX, deltaY: e.deltaY, deltaMode: e.deltaMode,
-          bubbles: true, cancelable: true
-        });
-        document.getElementById("viewDiv").dispatchEvent(mapEvt);
+        document.getElementById("viewDiv").dispatchEvent(
+          new WheelEvent("wheel", {
+            clientX: e.clientX, clientY: e.clientY,
+            deltaX: e.deltaX, deltaY: e.deltaY, deltaMode: e.deltaMode,
+            bubbles: true, cancelable: true
+          })
+        );
       });
 
-      // Pass drag events for map panning
+      // Drag → map pan
       let isDragging = false;
-      let dragStartX, dragStartY;
-
       interLayer.addEventListener("mousedown", (e) => {
         isDragging = true;
-        dragStartX = e.clientX;
-        dragStartY = e.clientY;
         interLayer.style.pointerEvents = "none";
       });
-
       document.addEventListener("mouseup", () => {
-        if (isDragging) {
-          isDragging = false;
-          interLayer.style.pointerEvents = "auto";
-        }
+        if (isDragging) { isDragging = false; interLayer.style.pointerEvents = "auto"; }
       });
-
       document.addEventListener("mousemove", (e) => {
-        if (isDragging) {
-          mouseX = e.clientX;
-          mouseY = e.clientY;
-        }
+        if (isDragging) { mouseX = e.clientX; mouseY = e.clientY; }
       });
 
       // Category buttons
-      document.querySelectorAll(".cat-btn").forEach(btn => {
+      document.querySelectorAll(".category-bar .pill-btn").forEach(btn => {
         btn.addEventListener("click", () => {
-          document.querySelectorAll(".cat-btn").forEach(b => b.classList.remove("active"));
+          document.querySelectorAll(".category-bar .pill-btn").forEach(b => b.classList.remove("active"));
           btn.classList.add("active");
           activeCat = btn.dataset.cat;
           projectPoints();
@@ -683,12 +748,21 @@
       });
 
       // Year buttons
-      document.querySelectorAll(".year-btn").forEach(btn => {
+      document.querySelectorAll(".year-bar .pill-btn").forEach(btn => {
         btn.addEventListener("click", () => {
-          document.querySelectorAll(".year-btn").forEach(b => b.classList.remove("active"));
+          document.querySelectorAll(".year-bar .pill-btn").forEach(b => b.classList.remove("active"));
           btn.classList.add("active");
           activeYear = btn.dataset.year;
           projectPoints();
+        });
+      });
+
+      // Radius buttons
+      document.querySelectorAll(".radius-bar .pill-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".radius-bar .pill-btn").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          radiusMiles = parseInt(btn.dataset.miles);
         });
       });
 
@@ -697,18 +771,10 @@
       // ═══════════════════════════════════════
       view.when(() => {
         projectPoints();
-
-        // Re-project on view change (pan/zoom)
         view.watch("extent", () => projectPoints());
         view.watch("zoom", () => projectPoints());
-
-        // Start render loop
         requestAnimationFrame(drawFrame);
-
-        // Hide loading
-        setTimeout(() => {
-          document.getElementById("loadingOverlay").classList.add("hidden");
-        }, 600);
+        setTimeout(() => document.getElementById("loadingOverlay").classList.add("hidden"), 600);
       }, (err) => {
         console.error("View failed:", err);
         projectPoints();
