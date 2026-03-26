@@ -466,11 +466,12 @@
     // ═══════════════════════════════════════
     // ArcGIS 5.0 ES Module imports
     // ═══════════════════════════════════════
-    const [Map, MapView, Point, esriConfig] = await $arcgis.import([
+    const [Map, MapView, Point, esriConfig, reactiveUtils] = await $arcgis.import([
       "@arcgis/core/Map.js",
       "@arcgis/core/views/MapView.js",
       "@arcgis/core/geometry/Point.js",
-      "@arcgis/core/config.js"
+      "@arcgis/core/config.js",
+      "@arcgis/core/core/reactiveUtils.js"
     ]);
 
     esriConfig.apiKey = apiKey;
@@ -545,7 +546,7 @@
     // ═══════════════════════════════════════
     // MAP — ArcGIS dark-gray vector basemap
     // ═══════════════════════════════════════
-    const map = new Map({ basemap: "dark-gray-vector" });
+    const map = new Map({ basemap: "arcgis/dark-gray" });
 
     const view = new MapView({
       container: "viewDiv",
@@ -758,8 +759,8 @@
     view.when(()=>{
       view.ui.components=[];
       proj();
-      view.watch("extent",()=>proj());
-      view.watch("zoom",()=>proj());
+      reactiveUtils.watch(()=>view.extent,()=>proj());
+      reactiveUtils.watch(()=>view.zoom,()=>proj());
       requestAnimationFrame(draw);
       setTimeout(()=>document.getElementById("loader").classList.add("off"),600);
     },err=>{
