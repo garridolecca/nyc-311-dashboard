@@ -434,11 +434,14 @@
     function getStoredKey() { return localStorage.getItem(KEY_STORAGE); }
 
     async function waitForApiKey() {
+      const overlay = document.getElementById("keyOverlay");
       const stored = getStoredKey();
-      if (stored) return stored;
+      if (stored) {
+        overlay.classList.add("off");
+        return stored;
+      }
 
       // Show the dialog
-      const overlay = document.getElementById("keyOverlay");
       const input = document.getElementById("keyInput");
       const btn = document.getElementById("keySubmit");
       const errEl = document.getElementById("keyError");
